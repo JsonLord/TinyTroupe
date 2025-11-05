@@ -410,7 +410,22 @@ class AzureClient(OpenAIClient):
                 api_version = config["OpenAI"]["AZURE_API_VERSION"],
                 azure_ad_token_provider=token_provider
             )
-    
+
+
+class HelmholtzBlabladorClient(OpenAIClient):
+
+    def __init__(self, cache_api_calls=default["cache_api_calls"], cache_file_name=default["cache_file_name"]) -> None:
+        logger.debug("Initializing HelmholtzBlabladorClient")
+        super().__init__(cache_api_calls, cache_file_name)
+
+    def _setup_from_config(self):
+        """
+        Sets up the Helmholtz Blablador API configurations for this client.
+        """
+        self.client = OpenAI(
+            base_url="https://api.helmholtz-blablador.fz-juelich.de/v1",
+            api_key=os.getenv("HELMHOLTZ_BLABLADOR_API_KEY", "dummy"),
+        )
 
 ###########################################################################
 # Exceptions
@@ -502,6 +517,7 @@ def force_api_cache(cache_api_calls, cache_file_name=default["cache_file_name"])
 # default client
 register_client("openai", OpenAIClient())
 register_client("azure", AzureClient())
+register_client("helmholtz-blablador", HelmholtzBlabladorClient())
 
 
 
