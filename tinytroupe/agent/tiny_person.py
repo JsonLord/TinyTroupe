@@ -759,8 +759,22 @@ class TinyPerson(JsonSerializableRegistry):
         """
         return self._observe(
             stimulus={
-                "type": "SEQUENTIAL_THINKING",
+                "type": "THOUGHT",
                 "content": thought,
+                "source": name_or_empty(self),
+            },
+            max_content_length=max_content_length,
+        )
+
+    def sequential_think(self, thought_data: dict, max_content_length=None):
+        """
+        Forces the agent to think about something and updates its internal cognitive state.
+
+        """
+        return self._observe(
+            stimulus={
+                "type": "SEQUENTIAL_THINKING",
+                "content": json.dumps(thought_data),
                 "source": name_or_empty(self),
             },
             max_content_length=max_content_length,

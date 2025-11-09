@@ -410,7 +410,53 @@ class SequentialThinkingFaculty(TinyMentalFaculty):
 
     def actions_definitions_prompt(self) -> str:
         return """
-        - SEQUENTIAL_THINKING: Engage in a dynamic and reflective problem-solving process by breaking down complex problems into a sequence of thoughts.
+        - SEQUENTIAL_THINKING: Engage in a dynamic and reflective problem-solving process by breaking down complex problems into a sequence of thoughts. The content of this action should be a JSON string with the following schema:
+        {
+            "type": "object",
+            "properties": {
+                "thought": {
+                    "type": "string",
+                    "description": "Your current thinking step"
+                },
+                "nextThoughtNeeded": {
+                    "type": "boolean",
+                    "description": "Whether another thought step is needed"
+                },
+                "thoughtNumber": {
+                    "type": "integer",
+                    "description": "Current thought number (numeric value, e.g., 1, 2, 3)",
+                    "minimum": 1
+                },
+                "totalThoughts": {
+                    "type": "integer",
+                    "description": "Estimated total thoughts needed (numeric value, e.g., 5, 10)",
+                    "minimum": 1
+                },
+                "isRevision": {
+                    "type": "boolean",
+                    "description": "Whether this revises previous thinking"
+                },
+                "revisesThought": {
+                    "type": "integer",
+                    "description": "Which thought is being reconsidered",
+                    "minimum": 1
+                },
+                "branchFromThought": {
+                    "type": "integer",
+                    "description": "Branching point thought number",
+                    "minimum": 1
+                },
+                "branchId": {
+                    "type": "string",
+                    "description": "Branch identifier"
+                },
+                "needsMoreThoughts": {
+                    "type": "boolean",
+                    "description": "If more thoughts are needed"
+                }
+            },
+            "required": ["thought", "nextThoughtNeeded", "thoughtNumber", "totalThoughts"]
+        }
         """
 
     def actions_constraints_prompt(self) -> str:
