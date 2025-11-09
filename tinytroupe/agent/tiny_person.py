@@ -5,6 +5,7 @@ from tinytroupe.utils import JsonSerializableRegistry, repeat_on_error, name_or_
 import tinytroupe.utils as utils
 from tinytroupe.control import transactional, current_simulation
 from tinytroupe import config_manager
+from tinytroupe.utils.logger import get_logger
 
 import os
 import json
@@ -757,6 +758,8 @@ class TinyPerson(JsonSerializableRegistry):
         Forces the agent to think about something and updates its internal cognitive state.
 
         """
+        logger = get_logger(self.name)
+        logger.info(f"Thinking: {thought}")
         return self._observe(
             stimulus={
                 "type": "THOUGHT",
@@ -1214,6 +1217,7 @@ max_content_length=max_content_length,
         """
         Displays the current communication and stores it in a buffer for later use.
         """
+        logger = get_logger(self.name)
         # CONCURRENT PROTECTION, as we'll access shared display buffers
         with concurrent_agent_action_lock:
             if kind == "stimuli":
@@ -1239,6 +1243,7 @@ max_content_length=max_content_length,
             else:
                 raise ValueError(f"Unknown communication kind: {kind}")
 
+            logger.info(f"Output: {rendering}")
             # if the agent has no parent environment, then it is a free agent and we can display the communication.
             # otherwise, the environment will display the communication instead. This is important to make sure that
             # the communication is displayed in the correct order, since environments control the flow of their underlying
