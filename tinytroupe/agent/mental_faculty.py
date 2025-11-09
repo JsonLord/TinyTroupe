@@ -397,3 +397,24 @@ class TinyToolUse(TinyMentalFaculty):
             prompt += tool.actions_constraints_prompt()
         
         return prompt
+
+
+class SequentialThinkingFaculty(TinyMentalFaculty):
+    def __init__(self):
+        super().__init__("Sequential Thinking")
+        from tinytroupe.tools.sequential_thinking import SequentialThinkingTool
+        self.sequential_thinking_tool = SequentialThinkingTool()
+
+    def process_action(self, agent, action: dict) -> bool:
+        return self.sequential_thinking_tool.process_action(agent, action)
+
+    def actions_definitions_prompt(self) -> str:
+        return """
+        - SEQUENTIAL_THINKING: Engage in a dynamic and reflective problem-solving process by breaking down complex problems into a sequence of thoughts.
+        """
+
+    def actions_constraints_prompt(self) -> str:
+        return """
+        - When you need to solve a complex problem, use the SEQUENTIAL_THINKING action to break it down into smaller, manageable thoughts.
+        - Each thought should build upon, question, or revise previous insights.
+        """
