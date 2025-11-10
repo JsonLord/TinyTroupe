@@ -35,7 +35,9 @@ dependencies = [
     "pydantic",
     "pypandoc",
     "textdistance",
-    "scipy"
+    "scipy",
+    "transformers==4.38.2",
+    "huggingface-hub==0.22.2"
 ]
 
 [project.urls]
