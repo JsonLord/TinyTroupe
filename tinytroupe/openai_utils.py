@@ -423,8 +423,8 @@ class HelmholtzBlabladorClient(OpenAIClient):
         Sets up the Helmholtz Blablador API configurations for this client.
         """
         self.client = OpenAI(
-            base_url="https://api.helmholtz-blablador.fz-juelich.de/v1",
-            api_key=os.getenv("HELMHOLTZ_BLABLADOR_API_KEY", "dummy"),
+            base_url=config["OpenAI"]["BLABLADOR_ENDPOINT"],
+            api_key=os.getenv("BLABLADOR_API_KEY", "dummy"),
         )
 
 ###########################################################################
@@ -484,9 +484,13 @@ def client():
     """
     Returns the client for the configured API type.
     """
+    if os.getenv("BLABLADOR_API_KEY"):
+        logger.debug("Using HelmholtzBlabladorClient.")
+        return _get_client_for_api_type("helmholtz-blablador")
+
     api_type = config["OpenAI"]["API_TYPE"] if _api_type_override is None else _api_type_override
     
-    logger.debug(f"Using  API type {api_type}.")
+    logger.debug(f"Using API type {api_type}.")
     return _get_client_for_api_type(api_type)
 
 
