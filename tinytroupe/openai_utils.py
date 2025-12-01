@@ -504,6 +504,7 @@ def client():
             logger.warning("BLABLADOR_API_KEY not set. Falling back to OpenAI client and models.")
             config_manager.update("model", "gpt-4o-mini")
             config_manager.update("reasoning_model", "gpt-4")
+            config_manager.update("max_tokens", 16384)
             logger.debug("Using OpenAIClient due to fallback.")
             return _get_client_for_api_type("openai")
 
@@ -539,4 +540,6 @@ def force_api_cache(cache_api_calls, cache_file_name=default["cache_file_name"])
 register_client("openai", OpenAIClient())
 register_client("azure", AzureClient())
 register_client("helmholtz-blablador", HelmholtzBlabladorClient())
+
+
 
