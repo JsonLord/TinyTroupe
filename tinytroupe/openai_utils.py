@@ -431,9 +431,12 @@ class HelmholtzBlabladorClient(OpenAIClient):
         """
         Sets up the Helmholtz Blablador API configurations for this client.
         """
+        api_key = os.getenv("BLABLADOR_API_KEY") or os.getenv("OPENAI_API_KEY")
+        if api_key:
+            logger.info("Using Helmholtz Blablador API with provided key.")
         self.client = OpenAI(
             base_url=config["OpenAI"]["BLABLADOR_ENDPOINT"],
-            api_key=os.getenv("BLABLADOR_API_KEY", "dummy"),
+            api_key=api_key or "dummy",
         )
 
 ###########################################################################
@@ -497,11 +500,11 @@ def client():
     api_type = config["OpenAI"]["API_TYPE"] if _api_type_override is None else _api_type_override
     
     if api_type == "helmholtz-blablador":
-        if os.getenv("BLABLADOR_API_KEY"):
+        if os.getenv("BLABLADOR_API_KEY") or os.getenv("OPENAI_API_KEY"):
             logger.debug("Using HelmholtzBlabladorClient.")
             return _get_client_for_api_type("helmholtz-blablador")
         else:
-            logger.warning("BLABLADOR_API_KEY not set. Falling back to OpenAI client and models.")
+            logger.warning("BLABLADOR_API_KEY or OPENAI_API_KEY not set. Falling back to OpenAI client and models.")
             config_manager.update("model", "gpt-4o-mini")
             config_manager.update("reasoning_model", "gpt-4")
             config_manager.update("max_tokens", 16384)
