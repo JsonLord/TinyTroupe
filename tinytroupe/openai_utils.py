@@ -52,10 +52,6 @@ class OpenAIClient:
         """
         Sets up the OpenAI API configurations for this client.
         """
-        logger.info("Configuring for OpenAIClient.")
-        config_manager.update("model", "gpt-4o-mini")
-        config_manager.update("reasoning_model", "gpt-4")
-        config_manager.update("max_tokens", 16384)
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     @config_manager.config_defaults(
@@ -434,14 +430,9 @@ class HelmholtzBlabladorClient(OpenAIClient):
         """
         Sets up the Helmholtz Blablador API configurations for this client.
         """
-        api_key = os.getenv("BLABLADOR_API_KEY")
-        logger.info("Configuring for HelmholtzBlabladorClient.")
-        config_manager.update("model", "alias-large")
-        config_manager.update("reasoning_model", "alias-large")
-        config_manager.update("max_tokens", 32000)
         self.client = OpenAI(
             base_url=config["OpenAI"]["BLABLADOR_ENDPOINT"],
-            api_key=api_key or "dummy",
+            api_key=os.getenv("BLABLADOR_API_KEY", "dummy"),
         )
 
 ###########################################################################
@@ -503,16 +494,24 @@ def client():
     Falls back to OpenAI if the Blablador key is not set.
     """
     api_type = config_manager.get("api_type") if _api_type_override is None else _api_type_override
-
-    if api_type == "helmholtz-blablador" and not os.getenv("BLABLADOR_API_KEY"):
-        logger.warning("BLABLADOR_API_KEY not set. Falling back to OpenAI client.")
-        return _get_client_for_api_type("openai")
     
-    if api_type not in _api_type_to_client:
-        logger.warning(f"API type '{api_type}' not recognized. Defaulting to OpenAI client.")
-        return _get_client_for_api_type("openai")
+    use_helmholtz = api_type == "helmholtz-blablador" and os.getenv("BLABLADOR_API_KEY")
+
+    if use_helmholtz:
+        logger.info("Configuring for HelmholtzBlabladorClient.")
+        config_manager.update("model", "alias-large")
+        config_manager.update("reasoning_model", "alias-large")
+        config_manager.update("max_tokens", 32000)
+        return _get_client_for_api_type("helmholtz-blablador")
+    else:
+        if api_type == "helmholtz-blablador":
+            logger.warning("BLABLADOR_API_KEY not set. Falling back to OpenAI client.")
         
-    return _get_client_for_api_type(api_type)
+        logger.info("Configuring for OpenAIClient.")
+        config_manager.update("model", "gpt-4o-mini")
+        config_manager.update("reasoning_model", "gpt-4")
+        config_manager.update("max_tokens", 16384)
+        return _get_client_for_api_type("openai")
 
 
 # TODO simplify the custom configuration methods below
