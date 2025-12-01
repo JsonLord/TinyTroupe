@@ -133,6 +133,14 @@ class OpenAIClient:
             for message in current_messages:
                 if "content" in message:
                     message["content"] = utils.dedent(message["content"])
+
+        # Hotfix for Helmholtz Blablador API, which does not accept a system message after an assistant one.
+        if isinstance(self, HelmholtzBlabladorClient):
+            logger.debug("Running on Helmholtz Blablador client. Checking for system messages after assistant messages.")
+            for i in range(1, len(current_messages)):
+                if current_messages[i-1]["role"] == "assistant" and current_messages[i]["role"] == "system":
+                    logger.debug(f"Found system message at index {i} after an assistant message. Changing role to 'user'.")
+                    current_messages[i]["role"] = "user"
             
         
         # We need to adapt the parameters to the API type, so we create a dictionary with them first
@@ -312,7 +320,7 @@ class OpenAIClient:
             elif "gpt-3.5-turbo" in model:
                 logger.debug("Token count: gpt-3.5-turbo may update over time. Returning num tokens assuming gpt-3.5-turbo-0613.")
                 return self._count_tokens(messages, model="gpt-3.5-turbo-0613")
-            elif ("gpt-4" in model) or ("ppo" in model) :
+            elif ("gpt-4" in model) or ("ppo" in model) or ("alias" in model):
                 logger.debug("Token count: gpt-4 may update over time. Returning num tokens assuming gpt-4-0613.")
                 return self._count_tokens(messages, model="gpt-4-0613")
             else:
@@ -483,13 +491,19 @@ def _get_client_for_api_type(api_type):
 def client():
     """
     Returns the client for the configured API type.
+    Falls back to the OpenAI client if the Helmholtz Blablador API key is not set.
     """
-    if os.getenv("BLABLADOR_API_KEY"):
-        logger.debug("Using HelmholtzBlabladorClient.")
-        return _get_client_for_api_type("helmholtz-blablador")
-
     api_type = config["OpenAI"]["API_TYPE"] if _api_type_override is None else _api_type_override
     
+    if api_type == "helmholtz-blablador":
+        if os.getenv("BLABLADOR_API_KEY"):
+            logger.debug("Using HelmholtzBlabladorClient.")
+            return _get_client_for_api_type("helmholtz-blablador")
+        else:
+            logger.warning("BLABLADOR_API_KEY not set. Falling back to OpenAI client.")
+            logger.debug("Using OpenAIClient due to fallback.")
+            return _get_client_for_api_type("openai")
+
     logger.debug(f"Using API type {api_type}.")
     return _get_client_for_api_type(api_type)
 
