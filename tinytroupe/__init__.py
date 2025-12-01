@@ -41,6 +41,7 @@ class ConfigManager:
         """Initialize default values from config file"""
         config = utils.read_config_file()
         
+        self._config["api_type"] = config["OpenAI"].get("API_TYPE", "openai")
         self._config["model"] = config["OpenAI"].get("MODEL", "gpt-4o")
         self._config["embedding_model"] = config["OpenAI"].get("EMBEDDING_MODEL", "text-embedding-3-small")
         if config["OpenAI"].get("API_TYPE") == "azure":
