@@ -495,24 +495,27 @@ def _get_client_for_api_type(api_type):
 def client():
     """
     Returns the client for the configured API type.
-    Falls back to the OpenAI client and models if the Helmholtz Blablador API key is not set.
+    Dynamically sets models and falls back to OpenAI if the Blablador key is not set.
     """
-    api_type = config["OpenAI"]["API_TYPE"] if _api_type_override is None else _api_type_override
+    api_type = config_manager.get("api_type") if _api_type_override is None else _api_type_override
     
-    if api_type == "helmholtz-blablador":
-        if os.getenv("BLABLADOR_API_KEY") or os.getenv("OPENAI_API_KEY"):
-            logger.debug("Using HelmholtzBlabladorClient.")
-            return _get_client_for_api_type("helmholtz-blablador")
-        else:
-            logger.warning("BLABLADOR_API_KEY or OPENAI_API_KEY not set. Falling back to OpenAI client and models.")
-            config_manager.update("model", "gpt-4o-mini")
-            config_manager.update("reasoning_model", "gpt-4")
-            config_manager.update("max_tokens", 16384)
-            logger.debug("Using OpenAIClient due to fallback.")
-            return _get_client_for_api_type("openai")
+    use_helmholtz = api_type == "helmholtz-blablador" and (os.getenv("BLABLADOR_API_KEY") or os.getenv("OPENAI_API_KEY"))
 
-    logger.debug(f"Using API type {api_type}.")
-    return _get_client_for_api_type(api_type)
+    if use_helmholtz:
+        logger.debug("Configuring for HelmholtzBlabladorClient.")
+        config_manager.update("model", "alias-fast")
+        config_manager.update("reasoning_model", "alias-large")
+        config_manager.update("max_tokens", 32000)
+        return _get_client_for_api_type("helmholtz-blablador")
+    else:
+        if api_type == "helmholtz-blablador":
+            logger.warning("BLABLADOR_API_KEY or OPENAI_API_KEY not set. Falling back to OpenAI client and models.")
+        
+        logger.debug("Configuring for OpenAIClient.")
+        config_manager.update("model", "gpt-4o-mini")
+        config_manager.update("reasoning_model", "gpt-4")
+        config_manager.update("max_tokens", 16384)
+        return _get_client_for_api_type("openai")
 
 
 # TODO simplify the custom configuration methods below
