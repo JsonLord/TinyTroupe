@@ -52,6 +52,7 @@ class OpenAIClient:
         """
         Sets up the OpenAI API configurations for this client.
         """
+        logger.info("Using OpenAI API with key from OPENAI_API_KEY.")
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     @config_manager.config_defaults(
@@ -491,7 +492,7 @@ def _get_client_for_api_type(api_type):
 def client():
     """
     Returns the client for the configured API type.
-    Falls back to the OpenAI client if the Helmholtz Blablador API key is not set.
+    Falls back to the OpenAI client and models if the Helmholtz Blablador API key is not set.
     """
     api_type = config["OpenAI"]["API_TYPE"] if _api_type_override is None else _api_type_override
     
@@ -500,7 +501,9 @@ def client():
             logger.debug("Using HelmholtzBlabladorClient.")
             return _get_client_for_api_type("helmholtz-blablador")
         else:
-            logger.warning("BLABLADOR_API_KEY not set. Falling back to OpenAI client.")
+            logger.warning("BLABLADOR_API_KEY not set. Falling back to OpenAI client and models.")
+            config_manager.update("model", "gpt-4o-mini")
+            config_manager.update("reasoning_model", "gpt-4")
             logger.debug("Using OpenAIClient due to fallback.")
             return _get_client_for_api_type("openai")
 
@@ -536,5 +539,4 @@ def force_api_cache(cache_api_calls, cache_file_name=default["cache_file_name"])
 register_client("openai", OpenAIClient())
 register_client("azure", AzureClient())
 register_client("helmholtz-blablador", HelmholtzBlabladorClient())
-
 
