@@ -133,6 +133,14 @@ class OpenAIClient:
             for message in current_messages:
                 if "content" in message:
                     message["content"] = utils.dedent(message["content"])
+
+        # Hotfix for Helmholtz Blablador API, which does not accept a system message after an assistant one.
+        if isinstance(self, HelmholtzBlabladorClient):
+            logger.debug("Running on Helmholtz Blablador client. Checking for system messages after assistant messages.")
+            for i in range(1, len(current_messages)):
+                if current_messages[i-1]["role"] == "assistant" and current_messages[i]["role"] == "system":
+                    logger.debug(f"Found system message at index {i} after an assistant message. Changing role to 'user'.")
+                    current_messages[i]["role"] = "user"
             
         
         # We need to adapt the parameters to the API type, so we create a dictionary with them first
@@ -218,6 +226,25 @@ class OpenAIClient:
                 
             except Exception as e:
                 logger.error(f"[{i}] {type(e).__name__} Error: {e}")
+
+                # Temporary fallback for 502 errors on Helmholtz
+                if isinstance(e, openai.APIStatusError) and e.status_code == 502 and isinstance(self, HelmholtzBlabladorClient):
+                    logger.warning("Helmholtz API returned a 502 error. Temporarily falling back to OpenAI for this request.")
+                    try:
+                        fallback_client = _get_client_for_api_type("openai")
+                        fallback_chat_api_params = chat_api_params.copy()
+                        fallback_chat_api_params["model"] = "gpt-4o-mini"
+                        fallback_chat_api_params["max_tokens"] = 16384
+
+                        response = fallback_client._raw_model_call(fallback_chat_api_params["model"], fallback_chat_api_params)
+
+                        if enable_pydantic_model_return:
+                            return utils.to_pydantic_or_sanitized_dict(fallback_client._raw_model_response_extractor(response), model=response_format)
+                        else:
+                            return utils.sanitize_dict(fallback_client._raw_model_response_extractor(response))
+                    except Exception as fallback_e:
+                        logger.error(f"Fallback to OpenAI also failed: {fallback_e}")
+
                 aux_exponential_backoff()
 
         logger.error(f"Failed to get response after {max_attempts} attempts.")
@@ -312,7 +339,7 @@ class OpenAIClient:
             elif "gpt-3.5-turbo" in model:
                 logger.debug("Token count: gpt-3.5-turbo may update over time. Returning num tokens assuming gpt-3.5-turbo-0613.")
                 return self._count_tokens(messages, model="gpt-3.5-turbo-0613")
-            elif ("gpt-4" in model) or ("ppo" in model) :
+            elif ("gpt-4" in model) or ("ppo" in model) or ("alias" in model):
                 logger.debug("Token count: gpt-4 may update over time. Returning num tokens assuming gpt-4-0613.")
                 return self._count_tokens(messages, model="gpt-4-0613")
             else:
@@ -483,15 +510,27 @@ def _get_client_for_api_type(api_type):
 def client():
     """
     Returns the client for the configured API type.
+    Falls back to OpenAI if the Blablador key is not set.
     """
-    if os.getenv("BLABLADOR_API_KEY"):
-        logger.debug("Using HelmholtzBlabladorClient.")
-        return _get_client_for_api_type("helmholtz-blablador")
-
-    api_type = config["OpenAI"]["API_TYPE"] if _api_type_override is None else _api_type_override
+    api_type = config_manager.get("api_type") if _api_type_override is None else _api_type_override
     
-    logger.debug(f"Using API type {api_type}.")
-    return _get_client_for_api_type(api_type)
+    use_helmholtz = api_type == "helmholtz-blablador" and os.getenv("BLABLADOR_API_KEY")
+
+    if use_helmholtz:
+        logger.info("Configuring for HelmholtzBlabladorClient.")
+        config_manager.update("model", "alias-large")
+        config_manager.update("reasoning_model", "alias-large")
+        config_manager.update("max_tokens", 32000)
+        return _get_client_for_api_type("helmholtz-blablador")
+    else:
+        if api_type == "helmholtz-blablador":
+            logger.warning("BLABLADOR_API_KEY not set. Falling back to OpenAI client.")
+
+        logger.info("Configuring for OpenAIClient.")
+        config_manager.update("model", "gpt-4o-mini")
+        config_manager.update("reasoning_model", "gpt-4")
+        config_manager.update("max_tokens", 16384)
+        return _get_client_for_api_type("openai")
 
 
 # TODO simplify the custom configuration methods below

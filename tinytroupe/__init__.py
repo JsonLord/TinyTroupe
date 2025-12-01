@@ -41,6 +41,7 @@ class ConfigManager:
         """Initialize default values from config file"""
         config = utils.read_config_file()
         
+        self._config["api_type"] = config["OpenAI"].get("API_TYPE", "openai")
         self._config["model"] = config["OpenAI"].get("MODEL", "gpt-4o")
         self._config["embedding_model"] = config["OpenAI"].get("EMBEDDING_MODEL", "text-embedding-3-small")
         if config["OpenAI"].get("API_TYPE") == "azure":
@@ -49,7 +50,7 @@ class ConfigManager:
 
         self._config["max_tokens"] = int(config["OpenAI"].get("MAX_TOKENS", "1024"))
         self._config["temperature"] = float(config["OpenAI"].get("TEMPERATURE", "1.0"))
-        self._config["top_p"] = int(config["OpenAI"].get("TOP_P", "0"))
+        self._config["top_p"] = float(config["OpenAI"].get("TOP_P", "1.0"))
         self._config["frequency_penalty"] = float(config["OpenAI"].get("FREQ_PENALTY", "0.0"))
         self._config["presence_penalty"] = float(
             config["OpenAI"].get("PRESENCE_PENALTY", "0.0"))
