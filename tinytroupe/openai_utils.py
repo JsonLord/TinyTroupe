@@ -226,6 +226,25 @@ class OpenAIClient:
                 
             except Exception as e:
                 logger.error(f"[{i}] {type(e).__name__} Error: {e}")
+                
+                # Temporary fallback for 502 errors on Helmholtz
+                if isinstance(e, openai.APIStatusError) and e.status_code == 502 and isinstance(self, HelmholtzBlabladorClient):
+                    logger.warning("Helmholtz API returned a 502 error. Temporarily falling back to OpenAI for this request.")
+                    try:
+                        fallback_client = _get_client_for_api_type("openai")
+                        fallback_chat_api_params = chat_api_params.copy()
+                        fallback_chat_api_params["model"] = "gpt-4o-mini"
+                        fallback_chat_api_params["max_tokens"] = 16384
+                        
+                        response = fallback_client._raw_model_call(fallback_chat_api_params["model"], fallback_chat_api_params)
+                        
+                        if enable_pydantic_model_return:
+                            return utils.to_pydantic_or_sanitized_dict(fallback_client._raw_model_response_extractor(response), model=response_format)
+                        else:
+                            return utils.sanitize_dict(fallback_client._raw_model_response_extractor(response))
+                    except Exception as fallback_e:
+                        logger.error(f"Fallback to OpenAI also failed: {fallback_e}")
+
                 aux_exponential_backoff()
 
         logger.error(f"Failed to get response after {max_attempts} attempts.")
