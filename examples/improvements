@@ -28,5 +28,12 @@ Act actions must be preconfigured.
 System prompt must be modified to use tols accordingly. e.g. You are a ...[persona information] Your situation is that you are sitting in front of the computer screen and can perform actions on that computer screen via performing actions [command section descriptions.] 
 Break down the task at hand via [introduce sequential thinking api call or npx mcp server] 
 
+Which actions need to be part of it?
+- API call to webuse as [computeruse] action
+- API call to sequential thinking (clarify in prompt when and how to use it)    
+
+
 #Persona Creation
 Work backwards. What are the parts we need created, and what are the prompt changes to create that?
+
+Information from Astrid on messenger.
