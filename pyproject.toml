@@ -37,7 +37,9 @@ dependencies = [
     "textdistance",
     "scipy",
     "transformers==4.38.2",
-    "huggingface-hub==0.22.2"
+    "huggingface-hub==0.22.2",
+    "browser-use",
+    "python-dotenv"
 ]
 
 [project.urls]

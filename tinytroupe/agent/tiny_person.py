@@ -155,8 +155,10 @@ class TinyPerson(JsonSerializableRegistry):
         # _mental_faculties
         if not hasattr(self, '_mental_faculties'):
             # This default value MUST NOT be in the method signature, otherwise it will be shared across all instances.
-            from tinytroupe.agent.mental_faculty import SequentialThinkingFaculty
-            self._mental_faculties = [SequentialThinkingFaculty()]
+            from tinytroupe.agent.mental_faculty import TinyToolUse
+            from tinytroupe.tools.sequential_thinking import SequentialThinkingTool
+            from tinytroupe.tools.computer_use import ComputerUseTool
+            self._mental_faculties = [TinyToolUse(tools=[SequentialThinkingTool(), ComputerUseTool()])]
         
         # basic action repetition prevention
         if not hasattr(self, 'enable_basic_action_repetition_prevention'):
@@ -776,7 +778,7 @@ class TinyPerson(JsonSerializableRegistry):
         """
         return self._observe(
             stimulus={
-                "type": "SEQUENTIAL_THINKING",
+                "type": "sequential_thinking",
                 "content": json.dumps(thought_data),
                 "source": name_or_empty(self),
             },

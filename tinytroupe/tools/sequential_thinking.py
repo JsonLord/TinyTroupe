@@ -1,15 +1,18 @@
 import requests
 import json
-from tinytroupe.agent.mental_faculty import TinyToolUse
+from tinytroupe.tools.tiny_tool import TinyTool
 from tinytroupe.utils.logger import get_logger
 
-class SequentialThinkingTool(TinyToolUse):
+class SequentialThinkingTool(TinyTool):
     def __init__(self):
-        super().__init__(tools=[self])
+        super().__init__(
+            name="sequential_thinking",
+            description="A tool for dynamic and reflective problem-solving through a sequence of thoughts, interacting with an external MCP server."
+        )
         self.url = "https://harvesthealth-sequential-thinking-mcp.hf.space/run"
 
-    def process_action(self, agent, action: dict) -> bool:
-        if action['type'] == 'SEQUENTIAL_THINKING':
+    def _process_action(self, agent, action: dict) -> bool:
+        if action['type'] == self.name:
             logger = get_logger(agent.name)
 
             try:
@@ -51,13 +54,25 @@ class SequentialThinkingTool(TinyToolUse):
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
-            # Get the logger for the agent that is making the call
-            # This is a bit of a hack, as we don't have the agent object here.
-            # We will rely on the caller to log the error.
             return {"error": str(e)}
 
     def actions_definitions_prompt(self) -> str:
-        return ""
+        return """
+        {
+          "name": "sequential_thinking",
+          "description": "A detailed tool for dynamic and reflective problem-solving through thoughts. The 'content' field must be a JSON string containing the arguments for the thinking step.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "content": {
+                "type": "string",
+                "description": "A JSON string with the thinking step details. Must include 'thought', 'nextThoughtNeeded', 'thoughtNumber', and 'totalThoughts'. For example: '{\\"thought\\": \\"My first thought...\\", \\"nextThoughtNeeded\\": true, \\"thoughtNumber\\": 1, \\"totalThoughts\\": 5}'"
+              }
+            },
+            "required": ["content"]
+          }
+        }
+        """
 
     def actions_constraints_prompt(self) -> str:
         return ""
