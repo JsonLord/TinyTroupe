@@ -7,9 +7,11 @@ class SequentialThinkingTool(TinyToolUse):
     def __init__(self):
         super().__init__(tools=[self])
         self.url = "https://harvesthealth-sequential-thinking-mcp.hf.space/run"
+        self.name = "sequential_thinking"
+        self.description = "A tool for dynamic and reflective problem-solving through a sequence of thoughts, interacting with an external MCP server."
 
     def process_action(self, agent, action: dict) -> bool:
-        if action['type'] == 'SEQUENTIAL_THINKING':
+        if action['type'] == 'sequential_thinking':
             logger = get_logger(agent.name)
 
             try:
@@ -57,7 +59,22 @@ class SequentialThinkingTool(TinyToolUse):
             return {"error": str(e)}
 
     def actions_definitions_prompt(self) -> str:
-        return ""
+        return """
+        {
+          "name": "sequential_thinking",
+          "description": "A detailed tool for dynamic and reflective problem-solving through thoughts. The 'content' field must be a JSON string containing the arguments for the thinking step.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "content": {
+                "type": "string",
+                "description": "A JSON string with the thinking step details. Must include 'thought', 'nextThoughtNeeded', 'thoughtNumber', and 'totalThoughts'. For example: '{\\"thought\\": \\"My first thought...\\", \\"nextThoughtNeeded\\": true, \\"thoughtNumber\\": 1, \\"totalThoughts\\": 5}'"
+              }
+            },
+            "required": ["content"]
+          }
+        }
+        """
 
     def actions_constraints_prompt(self) -> str:
         return ""

@@ -35,3 +35,26 @@ def get_logger(agent_name):
 
     loggers[agent_name] = logger
     return logger
+
+def setup_agent_logger(agent_name, log_file):
+    """
+    Sets up a logger for a specific agent that writes to a dedicated log file.
+    """
+    logger = logging.getLogger(agent_name)
+    logger.setLevel(logging.INFO)
+
+    # Prevent duplicate handlers
+    if any(isinstance(h, logging.FileHandler) and h.baseFilename == os.path.abspath(log_file) for h in logger.handlers):
+        return logger
+
+    # Clear existing handlers to ensure a clean setup
+    if logger.hasHandlers():
+        logger.handlers.clear()
+
+    handler = logging.FileHandler(log_file, encoding='utf-8')
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
+    loggers[agent_name] = logger
+    return logger
