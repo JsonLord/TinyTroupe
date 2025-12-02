@@ -248,6 +248,7 @@ if config["OpenAI"].get("API_TYPE") == "azure":
     llamaindex_openai_embed_model = AzureOpenAIEmbedding(model=default["embedding_model"],
                                                         deployment_name=default["embedding_model"],
                                                         api_version=default["azure_embedding_model_api_version"],
+                                                        api_key=os.getenv("AZURE_OPENAI_KEY"),
                                                         embed_batch_size=10)
 else:
     llamaindex_openai_embed_model = OpenAIEmbedding(model=default["embedding_model"], embed_batch_size=10, api_key=os.getenv("OPENAI_API_KEY"))

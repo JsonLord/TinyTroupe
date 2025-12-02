@@ -12,6 +12,8 @@ sys.path.insert(0, '../../tinytroupe/')
 
 from tinytroupe.utils.llm import LLMChat, LLMScalarWithJustificationResponse, LLMScalarWithJustificationAndReasoningResponse
 from testing_utils import proposition_holds
+import openai
+from tinytroupe.openai_utils import HelmholtzBlabladorClient, OpenAIClient
 
 class TestLLMChat:
     """Comprehensive tests for the LLMChat class covering all functionality."""
@@ -715,3 +717,37 @@ class TestLLMPydanticModels:
                 value="test",
                 confidence="not_a_number"
             )
+
+    @patch('tinytroupe.openai_utils._get_client_for_api_type')
+    def test_helmholtz_fallback_after_four_consecutive_failures(self, mock_get_client):
+        """Test that Helmholtz client falls back to OpenAI client after four consecutive failures."""
+        # 1. Setup the fallback client mock
+        mock_fallback_client = MagicMock(spec=OpenAIClient)
+        mock_fallback_client._raw_model_response_extractor.return_value = {"content": "Fallback successful"}
+        mock_get_client.return_value = mock_fallback_client
+
+        # 2. Setup the Helmholtz client that will fail
+        helmholtz_client = HelmholtzBlabladorClient()
+
+        # 3. Mock the raw model call to raise InternalServerError
+        api_error = openai.InternalServerError(
+            "Internal Server Error",
+            response=MagicMock(),
+            body=None
+        )
+
+        with patch.object(helmholtz_client, '_raw_model_call', side_effect=api_error):
+            # 4. Call send_message which should trigger the fallback after 4 attempts
+            response = helmholtz_client.send_message(
+                current_messages=[{"role": "user", "content": "Hello"}],
+                max_attempts=5
+            )
+
+            # 5. Assertions
+            assert response is not None
+            assert response['content'] == "Fallback successful"
+            assert helmholtz_client.consecutive_failures == 0
+            mock_get_client.assert_called_once_with("openai")
+            mock_fallback_client._setup_from_config.assert_called_once()
+            mock_fallback_client._raw_model_call.assert_called_once()
+            mock_fallback_client._raw_model_response_extractor.assert_called_once()

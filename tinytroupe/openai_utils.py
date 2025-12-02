@@ -30,7 +30,7 @@ class OpenAIClient:
 
     def __init__(self, cache_api_calls=default["cache_api_calls"], cache_file_name=default["cache_file_name"]) -> None:
         logger.debug("Initializing OpenAIClient")
-
+        self.consecutive_failures = 0
         # should we cache api calls and reuse them?
         self.set_api_cache(cache_api_calls, cache_file_name)
     
@@ -196,6 +196,7 @@ class OpenAIClient:
                 logger.debug(
                     f"Got response in {end_time - start_time:.2f} seconds after {i} attempts.")
 
+                self.consecutive_failures = 0
                 if enable_pydantic_model_return:
                     return utils.to_pydantic_or_sanitized_dict(self._raw_model_response_extractor(response), model=response_format)
                 else:
@@ -227,9 +228,11 @@ class OpenAIClient:
             except Exception as e:
                 logger.error(f"[{i}] {type(e).__name__} Error: {e}")
                 
-                # Temporary fallback for 502 errors on Helmholtz
-                if isinstance(e, openai.APIStatusError) and e.status_code == 502 and isinstance(self, HelmholtzBlabladorClient):
-                    logger.warning("Helmholtz API returned a 502 error. Temporarily falling back to OpenAI for this request.")
+                self.consecutive_failures += 1
+                is_server_error = (isinstance(e, openai.APIStatusError) and e.status_code in [500, 502]) or isinstance(e, openai.InternalServerError)
+
+                if is_server_error and isinstance(self, HelmholtzBlabladorClient) and self.consecutive_failures >= 4:
+                    logger.warning(f"Helmholtz API returned a server error for the {self.consecutive_failures}th time. Temporarily falling back to OpenAI for this request.")
                     try:
                         fallback_client = _get_client_for_api_type("openai")
                         fallback_client._setup_from_config()
@@ -239,6 +242,8 @@ class OpenAIClient:
                         
                         response = fallback_client._raw_model_call(fallback_chat_api_params["model"], fallback_chat_api_params)
                         
+                        self.consecutive_failures = 0
+
                         if enable_pydantic_model_return:
                             return utils.to_pydantic_or_sanitized_dict(fallback_client._raw_model_response_extractor(response), model=response_format)
                         else:
