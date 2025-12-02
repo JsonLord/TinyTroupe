@@ -232,6 +232,7 @@ class OpenAIClient:
                     logger.warning("Helmholtz API returned a 502 error. Temporarily falling back to OpenAI for this request.")
                     try:
                         fallback_client = _get_client_for_api_type("openai")
+                        fallback_client._setup_from_config()
                         fallback_chat_api_params = chat_api_params.copy()
                         fallback_chat_api_params["model"] = "gpt-4o-mini"
                         fallback_chat_api_params["max_tokens"] = 16384
