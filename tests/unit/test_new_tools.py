@@ -78,3 +78,21 @@ def test_computer_use_tool_press_key_action(mock_agent):
     assert result is True
     assert mock_client.predict.call_count == 3
     mock_agent.think.assert_called_with("Successfully performed action 'press_key'.")
+
+def test_computer_use_tool_no_client_provided(mock_agent):
+    """Test that ComputerUseTool instantiates its own client when none is provided."""
+    with patch('tinytroupe.tools.computer_use.Client') as mock_client_constructor:
+        mock_client_instance = MagicMock()
+        mock_client_instance.predict.return_value = {"status": "success"}
+        mock_client_constructor.return_value = mock_client_instance
+
+        tool = ComputerUseTool()
+        action = {
+            'type': 'computer_use',
+            'content': '{"action": "click", "param1": "value1"}'
+        }
+
+        result = tool.process_action(mock_agent, action)
+        assert result is True
+        mock_client_instance.predict.assert_called_with(api_name="/click", use_persistent=True, param1="value1")
+        mock_agent.think.assert_called_with("Successfully performed action 'click'.")
