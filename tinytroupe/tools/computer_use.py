@@ -3,32 +3,66 @@ from gradio_client import Client
 import json
 
 class ComputerUseTool(TinyToolUse):
-    def __init__(self, api_url="https://c2b846c65c20419ff6.gradio.live/"):
+    def __init__(self):
         super().__init__(tools=[self])
         self.name = "computer_use"
         self.description = "A tool to interact with a Gradio API, allowing for calling specific API endpoints with parameters."
-        self.api_url = api_url
+        self.actions_list = [
+            {"action": "see", "description": "Wait for an element to be visible on the page."},
+            {"action": "click", "description": "Simulate a mouse click on an element."},
+            {"action": "fill", "description": "Enter text into an input field."},
+            {"action": "submit", "description": "Submit a form."},
+            {"action": "wait", "description": "Pause execution for a specified duration."},
+            {"action": "scroll", "description": "Scroll the view to a specific element or position."},
+            {"action": "hover", "description": "Simulate hovering the mouse pointer over an element."},
+            {"action": "press_key", "description": "Simulate pressing a sequence of keys, often used for typing or sending special key combinations. The keys should be provided as a list in the 'keys' parameter."}
+        ]
+        self.action_mapping = {
+            "see": "/get-page-info",
+            "click": "/click",
+            "fill": "/fill",
+            "submit": "/submit_form",
+            "wait": "/wait_for_element",
+            "scroll": "/scroll_page",
+            "hover": "/hover_element",
+            "press_key": "/press_key"
+        }
+        self.client = Client("diamond-in/Browser-Use-mcp")
 
     def process_action(self, agent, action: dict) -> bool:
         if action['type'] == self.name:
             try:
                 content = json.loads(action['content'])
-                api_name = content.get('api_name')
+                action_name = content.get('action')
 
-                if not api_name:
-                    agent.think("Error: 'api_name' is a required parameter for the computer_use tool.")
+                if not action_name:
+                    agent.think("Error: 'action' is a required parameter for the computer_use tool.")
                     return False
 
-                # All other parameters are passed as keyword arguments
-                params = {k: v for k, v in content.items() if k != 'api_name'}
+                api_name = self.action_mapping.get(action_name)
 
-                client = Client(self.api_url)
-                result = client.predict(api_name=api_name, **params)
+                if not api_name:
+                    agent.think(f"Error: Unknown action '{action_name}'.")
+                    return False
 
-                agent.think(f"Successfully called API '{api_name}'.")
-                # The result might be complex, so we just log a summary
-                # It's the agent's job to parse this in its next thought
-                agent.memory.add_observation(f"API call result: {str(result)}")
+                params = {k: v for k, v in content.items() if k != 'action'}
+                params['use_persistent'] = True
+
+                if action_name == 'press_key':
+                    keys = params.get('keys', [])
+                    results = []
+                    for key in keys:
+                        key_params = params.copy()
+                        key_params['key'] = key
+                        del key_params['keys']
+                        result = self.client.predict(api_name=api_name, **key_params)
+                        results.append(result)
+                    final_result = ", ".join(results)
+                else:
+                    final_result = self.client.predict(api_name=api_name, **params)
+
+                agent.think(f"Successfully performed action '{action_name}'.")
+                agent.memory.add_observation(f"Action '{action_name}' result: {str(final_result)}")
 
                 return True
             except json.JSONDecodeError:

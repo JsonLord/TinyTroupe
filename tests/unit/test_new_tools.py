@@ -39,7 +39,7 @@ def test_computer_use_tool_process_action(mock_agent):
     tool = ComputerUseTool()
     action = {
         'type': 'computer_use',
-        'content': '{"api_name": "/test_endpoint", "param1": "value1"}'
+        'content': '{"action": "click", "param1": "value1"}'
     }
 
     with patch('tinytroupe.tools.computer_use.Client') as mock_client_constructor:
@@ -49,11 +49,11 @@ def test_computer_use_tool_process_action(mock_agent):
 
         result = tool.process_action(mock_agent, action)
         assert result is True
-        mock_client_instance.predict.assert_called_with(api_name="/test_endpoint", param1="value1")
-        mock_agent.think.assert_called_with("Successfully called API '/test_endpoint'.")
+        mock_client_instance.predict.assert_called_with(api_name="/click", param1="value1")
+        mock_agent.think.assert_called_with("Successfully performed action 'click'.")
 
-def test_computer_use_tool_missing_api_name(mock_agent):
-    """Test that ComputerUseTool handles a missing api_name gracefully."""
+def test_computer_use_tool_missing_action(mock_agent):
+    """Test that ComputerUseTool handles a missing action gracefully."""
     tool = ComputerUseTool()
     action = {
         'type': 'computer_use',
@@ -62,4 +62,22 @@ def test_computer_use_tool_missing_api_name(mock_agent):
 
     result = tool.process_action(mock_agent, action)
     assert result is False
-    mock_agent.think.assert_called_with("Error: 'api_name' is a required parameter for the computer_use tool.")
+    mock_agent.think.assert_called_with("Error: 'action' is a required parameter for the computer_use tool.")
+
+def test_computer_use_tool_press_key_action(mock_agent):
+    """Test that ComputerUseTool correctly processes a press_key action."""
+    tool = ComputerUseTool()
+    action = {
+        'type': 'computer_use',
+        'content': '{"action": "press_key", "keys": ["a", "b", "c"]}'
+    }
+
+    with patch('tinytroupe.tools.computer_use.Client') as mock_client_constructor:
+        mock_client_instance = MagicMock()
+        mock_client_instance.predict.return_value = "key pressed"
+        mock_client_constructor.return_value = mock_client_instance
+
+        result = tool.process_action(mock_agent, action)
+        assert result is True
+        assert mock_client_instance.predict.call_count == 3
+        mock_agent.think.assert_called_with("Successfully performed action 'press_key'.")
