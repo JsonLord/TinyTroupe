@@ -198,6 +198,9 @@ class TinyPerson(JsonSerializableRegistry):
         if not hasattr(self, 'stimuli_count'):
             self.stimuli_count = 0
 
+        if not hasattr(self, 'consecutive_high_similarity_actions'):
+            self.consecutive_high_similarity_actions = 0
+
         self._prompt_template_path = os.path.join(
             os.path.dirname(__file__), "prompts/tiny_person.mustache"
         )
@@ -554,32 +557,37 @@ class TinyPerson(JsonSerializableRegistry):
             # we have a redundant repetition check here, because this an be computed quickly and is often very useful.
             if self.enable_basic_action_repetition_prevention and \
                (TinyPerson.MAX_ACTION_SIMILARITY is not None) and (next_action_similarity > TinyPerson.MAX_ACTION_SIMILARITY):
-                
-                logger.warning(f"[{self.name}] Action similarity is too high ({next_action_similarity}), replacing it with DONE.")
+                self.consecutive_high_similarity_actions += 1
+                if self.consecutive_high_similarity_actions >= 2:
+                    logger.warning(f"[{self.name}] Action similarity is too high ({next_action_similarity}) for the second time, replacing it with DONE.")
 
-                # replace the action with a DONE
-                action = {"type": "DONE", "content": "", "target": ""}
-                content["action"] = action	
-                content["cognitive_state"] = {}
+                    # replace the action with a DONE
+                    action = {"type": "DONE", "content": "", "target": ""}
+                    content["action"] = action
+                    content["cognitive_state"] = {}
 
-                self.store_in_memory({'role': 'system', 
-                                    'content': \
-                                        f"""
-                                        # EXCESSIVE ACTION SIMILARITY WARNING
+                    self.store_in_memory({'role': 'system',
+                                        'content': \
+                                            f"""
+                                            # EXCESSIVE ACTION SIMILARITY WARNING
 
-                                        You were about to generate a repetitive action (jaccard similarity = {next_action_similarity}).
-                                        Thus, the action was discarded and replaced by an artificial DONE.
+                                            You were about to generate a repetitive action (jaccard similarity = {next_action_similarity}) for the second time.
+                                            Thus, the action was discarded and replaced by an artificial DONE.
 
-                                        DO NOT BE REPETITIVE. This is not a human-like behavior, therefore you **must** avoid this in the future.
-                                        Your alternatives are:
-                                        - produce more diverse actions.
-                                        - aggregate similar actions into a single, larger, action and produce it all at once.
-                                        - as a **last resort only**, you may simply not acting at all by issuing a DONE.
+                                            DO NOT BE REPETITIVE. This is not a human-like behavior, therefore you **must** avoid this in the future.
+                                            Your alternatives are:
+                                            - produce more diverse actions.
+                                            - aggregate similar actions into a single, larger, action and produce it all at once.
+                                            - as a **last resort only**, you may simply not acting at all by issuing a DONE.
 
-                                        
-                                        """,
-                                    'type': 'feedback',
-                                    'simulation_timestamp': self.iso_datetime()})
+
+                                            """,
+                                        'type': 'feedback',
+                                        'simulation_timestamp': self.iso_datetime()})
+                else:
+                    logger.warning(f"[{self.name}] Action similarity is too high ({next_action_similarity}), but allowing one more attempt.")
+            else:
+                self.consecutive_high_similarity_actions = 0
 
             # All checks done, we can commit the action to memory.
             self.store_in_memory({'role': role, 'content': content, 

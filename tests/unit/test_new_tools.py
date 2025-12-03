@@ -40,28 +40,31 @@ def test_computer_use_tool_process_action(mock_agent):
     tool = ComputerUseTool(client=mock_client)
     action = {
         'type': 'computer_use',
-        'content': '{"action": "click", "param1": "value1"}'
+        'content': 'click #some-button'
     }
 
     mock_client.predict.return_value = {"status": "success"}
 
     result = tool.process_action(mock_agent, action)
     assert result is True
-    mock_client.predict.assert_called_with(api_name="/click", use_persistent=True, param1="value1")
+    mock_client.predict.assert_called_with(api_name="/click", use_persistent=True, selector="#some-button")
     mock_agent.think.assert_called_with("Successfully performed action 'click'.")
 
-def test_computer_use_tool_missing_action(mock_agent):
-    """Test that ComputerUseTool handles a missing action gracefully."""
+def test_computer_use_tool_fill_action(mock_agent):
+    """Test that ComputerUseTool correctly processes a fill action."""
     mock_client = MagicMock()
     tool = ComputerUseTool(client=mock_client)
     action = {
         'type': 'computer_use',
-        'content': '{"param1": "value1"}'
+        'content': 'fill #username John Doe'
     }
 
+    mock_client.predict.return_value = {"status": "success"}
+
     result = tool.process_action(mock_agent, action)
-    assert result is False
-    mock_agent.think.assert_called_with("Error: 'action' is a required parameter for the computer_use tool.")
+    assert result is True
+    mock_client.predict.assert_called_with(api_name="/fill", use_persistent=True, selector="#username", text="John Doe")
+    mock_agent.think.assert_called_with("Successfully performed action 'fill'.")
 
 def test_computer_use_tool_press_key_action(mock_agent):
     """Test that ComputerUseTool correctly processes a press_key action."""
@@ -69,7 +72,7 @@ def test_computer_use_tool_press_key_action(mock_agent):
     tool = ComputerUseTool(client=mock_client)
     action = {
         'type': 'computer_use',
-        'content': '{"action": "press_key", "keys": ["a", "b", "c"]}'
+        'content': 'press_key a b c'
     }
 
     mock_client.predict.return_value = "key pressed"
@@ -89,10 +92,10 @@ def test_computer_use_tool_no_client_provided(mock_agent):
         tool = ComputerUseTool()
         action = {
             'type': 'computer_use',
-            'content': '{"action": "click", "param1": "value1"}'
+            'content': 'click #some-button'
         }
 
         result = tool.process_action(mock_agent, action)
         assert result is True
-        mock_client_instance.predict.assert_called_with(api_name="/click", use_persistent=True, param1="value1")
+        mock_client_instance.predict.assert_called_with(api_name="/click", use_persistent=True, selector="#some-button")
         mock_agent.think.assert_called_with("Successfully performed action 'click'.")

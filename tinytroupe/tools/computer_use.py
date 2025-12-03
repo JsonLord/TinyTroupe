@@ -35,8 +35,9 @@ class ComputerUseTool(TinyToolUse):
     def process_action(self, agent, action: dict) -> bool:
         if action['type'] == self.name:
             try:
-                content = json.loads(action['content'])
-                action_name = content.get('action')
+                content = action['content']
+                parts = content.split(' ')
+                action_name = parts[0]
 
                 if not action_name:
                     agent.think("Error: 'action' is a required parameter for the computer_use tool.")
@@ -48,7 +49,16 @@ class ComputerUseTool(TinyToolUse):
                     agent.think(f"Error: Unknown action '{action_name}'.")
                     return False
 
-                params = {k: v for k, v in content.items() if k != 'action'}
+                params = {}
+                if len(parts) > 1:
+                    if action_name == 'fill':
+                        params['selector'] = parts[1]
+                        params['text'] = ' '.join(parts[2:])
+                    elif action_name == 'press_key':
+                        params['keys'] = parts[1:]
+                    else:
+                        params['selector'] = parts[1]
+
                 params['use_persistent'] = True
 
                 if action_name == 'press_key':
@@ -68,9 +78,6 @@ class ComputerUseTool(TinyToolUse):
                 agent.memory.add_observation(f"Action '{action_name}' result: {str(final_result)}")
 
                 return True
-            except json.JSONDecodeError:
-                agent.think("Error: The 'content' for computer_use must be a valid JSON string.")
-                return False
             except Exception as e:
                 agent.think(f"Error using computer_use tool: {e}")
                 return False
@@ -81,13 +88,13 @@ class ComputerUseTool(TinyToolUse):
         return """
         {
           "name": "computer_use",
-          "description": "Call a specific endpoint of the Gradio API. The 'content' field must be a JSON string containing the 'api_name' and any other parameters for the endpoint.",
+          "description": "Perform a browser action. The 'content' is a string with the action and its parameters.",
           "inputSchema": {
             "type": "object",
             "properties": {
               "content": {
                 "type": "string",
-                "description": "A JSON string with the API call details. Must include 'api_name' and can include other parameters as key-value pairs. For example: '{\\"api_name\\": \\"/lambda_1\\", \\"provider\\": \\"openai\\"}'"
+                "description": "A string with the action and its parameters, e.g., 'click #submit-button' or 'fill #username-field John Doe'."
               }
             },
             "required": ["content"]
