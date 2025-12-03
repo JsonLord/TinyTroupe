@@ -3,7 +3,7 @@ from gradio_client import Client
 import json
 
 class ComputerUseTool(TinyToolUse):
-    def __init__(self):
+    def __init__(self, client: Client):
         super().__init__(tools=[self])
         self.name = "computer_use"
         self.description = "A tool to interact with a Gradio API, allowing for calling specific API endpoints with parameters."
@@ -27,7 +27,7 @@ class ComputerUseTool(TinyToolUse):
             "hover": "/hover_element",
             "press_key": "/press_key"
         }
-        self.client = Client("diamond-in/Browser-Use-mcp")
+        self.client = client
 
     def process_action(self, agent, action: dict) -> bool:
         if action['type'] == self.name:

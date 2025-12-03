@@ -36,25 +36,24 @@ def test_sequential_thinking_tool_process_action(mock_agent):
 
 def test_computer_use_tool_process_action(mock_agent):
     """Test that ComputerUseTool correctly processes a computer_use action."""
-    tool = ComputerUseTool()
+    mock_client = MagicMock()
+    tool = ComputerUseTool(client=mock_client)
     action = {
         'type': 'computer_use',
         'content': '{"action": "click", "param1": "value1"}'
     }
 
-    with patch('tinytroupe.tools.computer_use.Client') as mock_client_constructor:
-        mock_client_instance = MagicMock()
-        mock_client_instance.predict.return_value = {"status": "success"}
-        mock_client_constructor.return_value = mock_client_instance
+    mock_client.predict.return_value = {"status": "success"}
 
-        result = tool.process_action(mock_agent, action)
-        assert result is True
-        mock_client_instance.predict.assert_called_with(api_name="/click", param1="value1")
-        mock_agent.think.assert_called_with("Successfully performed action 'click'.")
+    result = tool.process_action(mock_agent, action)
+    assert result is True
+    mock_client.predict.assert_called_with(api_name="/click", use_persistent=True, param1="value1")
+    mock_agent.think.assert_called_with("Successfully performed action 'click'.")
 
 def test_computer_use_tool_missing_action(mock_agent):
     """Test that ComputerUseTool handles a missing action gracefully."""
-    tool = ComputerUseTool()
+    mock_client = MagicMock()
+    tool = ComputerUseTool(client=mock_client)
     action = {
         'type': 'computer_use',
         'content': '{"param1": "value1"}'
@@ -66,18 +65,16 @@ def test_computer_use_tool_missing_action(mock_agent):
 
 def test_computer_use_tool_press_key_action(mock_agent):
     """Test that ComputerUseTool correctly processes a press_key action."""
-    tool = ComputerUseTool()
+    mock_client = MagicMock()
+    tool = ComputerUseTool(client=mock_client)
     action = {
         'type': 'computer_use',
         'content': '{"action": "press_key", "keys": ["a", "b", "c"]}'
     }
 
-    with patch('tinytroupe.tools.computer_use.Client') as mock_client_constructor:
-        mock_client_instance = MagicMock()
-        mock_client_instance.predict.return_value = "key pressed"
-        mock_client_constructor.return_value = mock_client_instance
+    mock_client.predict.return_value = "key pressed"
 
-        result = tool.process_action(mock_agent, action)
-        assert result is True
-        assert mock_client_instance.predict.call_count == 3
-        mock_agent.think.assert_called_with("Successfully performed action 'press_key'.")
+    result = tool.process_action(mock_agent, action)
+    assert result is True
+    assert mock_client.predict.call_count == 3
+    mock_agent.think.assert_called_with("Successfully performed action 'press_key'.")
