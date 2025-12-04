@@ -8,6 +8,7 @@ class ComputerUseTool(TinyToolUse):
         self.name = "computer_use"
         self.description = "A tool to interact with a Gradio API, allowing for calling specific API endpoints with parameters."
         self.actions_list = [
+            {"action": "navigate", "description": "Navigate to a URL."},
             {"action": "see", "description": "Wait for an element to be visible on the page."},
             {"action": "click", "description": "Simulate a mouse click on an element."},
             {"action": "fill", "description": "Enter text into an input field."},
@@ -18,6 +19,7 @@ class ComputerUseTool(TinyToolUse):
             {"action": "press_key", "description": "Simulate pressing a sequence of keys, often used for typing or sending special key combinations. The keys should be provided as a list in the 'keys' parameter."}
         ]
         self.action_mapping = {
+            "navigate": "/browse_and_extract",
             "see": "/get-page-info",
             "click": "/click",
             "fill": "/fill",
@@ -35,12 +37,11 @@ class ComputerUseTool(TinyToolUse):
     def process_action(self, agent, action: dict) -> bool:
         if action['type'] == self.name:
             try:
-                content = action['content']
-                parts = content.split(' ')
-                action_name = parts[0]
+                content = json.loads(action['content'])
+                action_name = content.get('action_name')
 
                 if not action_name:
-                    agent.think("Error: 'action' is a required parameter for the computer_use tool.")
+                    agent.think("Error: 'action_name' is a required parameter for the computer_use tool.")
                     return False
 
                 api_name = self.action_mapping.get(action_name)
@@ -49,16 +50,7 @@ class ComputerUseTool(TinyToolUse):
                     agent.think(f"Error: Unknown action '{action_name}'.")
                     return False
 
-                params = {}
-                if len(parts) > 1:
-                    if action_name == 'fill':
-                        params['selector'] = parts[1]
-                        params['text'] = ' '.join(parts[2:])
-                    elif action_name == 'press_key':
-                        params['keys'] = parts[1:]
-                    else:
-                        params['selector'] = parts[1]
-
+                params = {k: v for k, v in content.items() if k != 'action_name'}
                 params['use_persistent'] = True
 
                 if action_name == 'press_key':
@@ -67,7 +59,8 @@ class ComputerUseTool(TinyToolUse):
                     for key in keys:
                         key_params = params.copy()
                         key_params['key'] = key
-                        del key_params['keys']
+                        if 'keys' in key_params:
+                            del key_params['keys']
                         result = self.client.predict(api_name=api_name, **key_params)
                         results.append(result)
                     final_result = ", ".join(results)
@@ -84,20 +77,38 @@ class ComputerUseTool(TinyToolUse):
         return False
 
     def actions_definitions_prompt(self) -> str:
-        # The prompt should describe the 'content' field as a JSON string
         return """
         {
           "name": "computer_use",
-          "description": "Perform a browser action. The 'content' is a string with the action and its parameters.",
+          "description": "Perform a browser action.",
           "inputSchema": {
             "type": "object",
             "properties": {
-              "content": {
+              "action_name": {
                 "type": "string",
-                "description": "A string with the action and its parameters, e.g., 'click #submit-button' or 'fill #username-field John Doe'."
+                "description": "The name of the action to perform."
+              },
+              "selector": {
+                "type": "string",
+                "description": "The CSS selector of the element to interact with."
+              },
+              "text": {
+                "type": "string",
+                "description": "The text to fill into an input field."
+              },
+              "url": {
+                "type": "string",
+                "description": "The URL to navigate to."
+              },
+              "keys": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "A list of keys to press."
               }
             },
-            "required": ["content"]
+            "required": ["action_name"]
           }
         }
         """

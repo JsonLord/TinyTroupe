@@ -558,8 +558,9 @@ class TinyPerson(JsonSerializableRegistry):
             if self.enable_basic_action_repetition_prevention and \
                (TinyPerson.MAX_ACTION_SIMILARITY is not None) and (next_action_similarity > TinyPerson.MAX_ACTION_SIMILARITY):
                 self.consecutive_high_similarity_actions += 1
+                # This is the "two-strikes" rule. If the agent generates a repetitive action twice in a row, we replace it with DONE.
                 if self.consecutive_high_similarity_actions >= 2:
-                    logger.warning(f"[{self.name}] Action similarity is too high ({next_action_similarity}) for the second time, replacing it with DONE.")
+                    logger.warning(f"[{self.name}] Action similarity is too high ({next_action_similarity}) for the second time in a row. Replacing the action with DONE.")
 
                     # replace the action with a DONE
                     action = {"type": "DONE", "content": "", "target": ""}
@@ -571,7 +572,7 @@ class TinyPerson(JsonSerializableRegistry):
                                             f"""
                                             # EXCESSIVE ACTION SIMILARITY WARNING
 
-                                            You were about to generate a repetitive action (jaccard similarity = {next_action_similarity}) for the second time.
+                                            You were about to generate a repetitive action (jaccard similarity = {next_action_similarity}) for the second time in a row.
                                             Thus, the action was discarded and replaced by an artificial DONE.
 
                                             DO NOT BE REPETITIVE. This is not a human-like behavior, therefore you **must** avoid this in the future.
@@ -585,7 +586,7 @@ class TinyPerson(JsonSerializableRegistry):
                                         'type': 'feedback',
                                         'simulation_timestamp': self.iso_datetime()})
                 else:
-                    logger.warning(f"[{self.name}] Action similarity is too high ({next_action_similarity}), but allowing one more attempt.")
+                    logger.warning(f"[{self.name}] Action similarity is too high ({next_action_similarity}). This is the first strike. Allowing one more attempt.")
             else:
                 self.consecutive_high_similarity_actions = 0
 
