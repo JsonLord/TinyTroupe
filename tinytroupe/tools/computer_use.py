@@ -67,8 +67,27 @@ class ComputerUseTool(TinyToolUse):
                 else:
                     final_result = self.client.predict(api_name=api_name, **params)
 
-                agent.think(f"Successfully performed action '{action_name}'.")
-                agent.memory.add_observation(f"Action '{action_name}' result: {str(final_result)}")
+                if action_name == 'navigate':
+                    page_info = final_result.get('page_info', 'No page info available.')
+                    agent.think(f"Successfully performed action 'navigate'. Current page info: {page_info}")
+                else:
+                    agent.think(f"Successfully performed action '{action_name}'.")
+
+                # Store the result in the agent's episodic memory as a stimulus
+                stimulus_content = {
+                    "stimuli": [{
+                        "type": "TOOL_RESULT",
+                        "content": f"Action '{action_name}' result: {str(final_result)}",
+                        "source": self.name
+                    }]
+                }
+                memory_entry = {
+                    'role': 'user',  # Stimuli are from the 'user' perspective for the agent
+                    'content': stimulus_content,
+                    'type': 'stimulus',
+                    'simulation_timestamp': agent.iso_datetime()
+                }
+                agent.store_in_memory(memory_entry)
 
                 return True
             except Exception as e:
