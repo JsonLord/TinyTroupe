@@ -68,8 +68,11 @@ class ComputerUseTool(TinyToolUse):
                     final_result = self.client.predict(api_name=api_name, **params)
 
                 if action_name == 'navigate':
-                    page_info = final_result.get('page_info', 'No page info available.')
-                    agent.think(f"Successfully performed action 'navigate'. Current page info: {page_info}")
+                    if isinstance(final_result, dict):
+                        page_info = final_result.get('page_info', 'No page info available.')
+                        agent.think(f"Successfully performed action 'navigate'. Current page info: {page_info}")
+                    else:
+                        agent.think(f"Successfully performed action 'navigate', but no page info was returned.")
                 else:
                     agent.think(f"Successfully performed action '{action_name}'.")
 

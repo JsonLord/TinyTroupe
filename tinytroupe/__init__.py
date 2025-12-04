@@ -9,6 +9,8 @@ import sys
 sys.path.append('.')
 from tinytroupe import utils # now we can import our utils
 
+from dotenv import load_dotenv
+
 # AI disclaimers
 print(\
 """
@@ -18,6 +20,9 @@ The AI models are not perfect and may produce inappropriate or inacurate results
 For any serious or consequential use, please review the generated content before using it.
 !!!!
 """)
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 ###########################################################################
