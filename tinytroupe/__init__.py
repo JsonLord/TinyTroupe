@@ -236,7 +236,7 @@ def get_config(key, override_value=None):
 
 if config["OpenAI"].get("API_TYPE") == "azure":
     from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
-else:
+elif config["OpenAI"].get("API_TYPE") == "openai":
     from llama_index.embeddings.openai import OpenAIEmbedding
 
 from llama_index.core import Settings, Document, VectorStoreIndex, SimpleDirectoryReader
@@ -255,9 +255,10 @@ if config["OpenAI"].get("API_TYPE") == "azure":
                                                         api_version=default["azure_embedding_model_api_version"],
                                                         api_key=os.getenv("AZURE_OPENAI_KEY"),
                                                         embed_batch_size=10)
-else:
+    Settings.embed_model = llamaindex_openai_embed_model
+elif config["OpenAI"].get("API_TYPE") == "openai":
     llamaindex_openai_embed_model = OpenAIEmbedding(model=default["embedding_model"], embed_batch_size=10, api_key=os.getenv("OPENAI_API_KEY"))
-Settings.embed_model = llamaindex_openai_embed_model
+    Settings.embed_model = llamaindex_openai_embed_model
 
 
 ###########################################################################
