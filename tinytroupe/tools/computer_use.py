@@ -3,7 +3,7 @@ from gradio_client import Client
 import json
 
 class ComputerUseTool(TinyToolUse):
-    def __init__(self, client: Client = None):
+    def __init__(self, client: Client = None, website_url: str = None):
         super().__init__(tools=[self])
         self.name = "computer_use"
         self.description = "A tool to interact with a Gradio API, allowing for calling specific API endpoints with parameters."
@@ -32,6 +32,7 @@ class ComputerUseTool(TinyToolUse):
         self.actions_requiring_url = [
             "navigate", "see", "click", "fill", "submit", "wait", "scroll", "hover", "press_key"
         ]
+        self.website_url = website_url
         if client:
             self.client = client
         else:
@@ -56,10 +57,8 @@ class ComputerUseTool(TinyToolUse):
                 params = {k: v for k, v in content.items() if k != 'action_name'}
                 params['use_persistent'] = True
 
-                # Ensure the URL is passed for all actions that require it
-                if 'url' not in params and action_name in self.actions_requiring_url:
-                    agent.think(f"Error: The '{action_name}' action requires a 'url' parameter.")
-                    return False
+                if 'url' not in params:
+                    params['url'] = self.website_url
 
                 if action_name == 'press_key':
                     keys = params.get('keys', [])
