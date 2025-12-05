@@ -49,8 +49,10 @@ def test_computer_use_tool_click_action(mock_agent):
 
     mock_client.predict.return_value = {"status": "success"}
 
-    result = tool.process_action(mock_agent, action)
-    assert result is True
+    with patch('tinytroupe.validation.computer_use_validator.ComputerUseValidator.validate_and_refine') as mock_validate:
+        mock_validate.return_value = True
+        result = tool.process_action(mock_agent, action)
+        assert result is True
     mock_client.predict.assert_called_with(api_name="/click", use_persistent=True, selector="#some-button", url="https://example.com")
     mock_agent.think.assert_called_with("Successfully performed action 'click'.")
 
@@ -71,8 +73,10 @@ def test_computer_use_tool_fill_action(mock_agent):
 
     mock_client.predict.return_value = {"status": "success"}
 
-    result = tool.process_action(mock_agent, action)
-    assert result is True
+    with patch('tinytroupe.validation.computer_use_validator.ComputerUseValidator.validate_and_refine') as mock_validate:
+        mock_validate.return_value = True
+        result = tool.process_action(mock_agent, action)
+        assert result is True
     mock_client.predict.assert_called_with(api_name="/fill", use_persistent=True, selector="#username", text="John Doe", url="https://example.com")
     mock_agent.think.assert_called_with("Successfully performed action 'fill'.")
 
@@ -92,8 +96,10 @@ def test_computer_use_tool_press_key_action(mock_agent):
 
     mock_client.predict.return_value = "key pressed"
 
-    result = tool.process_action(mock_agent, action)
-    assert result is True
+    with patch('tinytroupe.validation.computer_use_validator.ComputerUseValidator.validate_and_refine') as mock_validate:
+        mock_validate.return_value = True
+        result = tool.process_action(mock_agent, action)
+        assert result is True
     assert mock_client.predict.call_count == 3
     mock_agent.think.assert_called_with("Successfully performed action 'press_key'.")
 
@@ -112,8 +118,10 @@ def test_computer_use_tool_navigate_action(mock_agent):
 
     mock_client.predict.return_value = {"status": "success", "page_info": "Page loaded"}
 
-    result = tool.process_action(mock_agent, action)
-    assert result is True
+    with patch('tinytroupe.validation.computer_use_validator.ComputerUseValidator.validate_and_refine') as mock_validate:
+        mock_validate.return_value = True
+        result = tool.process_action(mock_agent, action)
+        assert result is True
     mock_client.predict.assert_called_with(api_name="/get_page_info", use_persistent=True, url="https://example.com")
     # Let's check the think message separately to avoid brittleness with the page_info content
     assert "Successfully performed action 'navigate'." in mock_agent.think.call_args[0][0]
@@ -136,7 +144,9 @@ def test_computer_use_tool_no_client_provided(mock_agent):
             'content': json.dumps(action_content)
         }
 
-        result = tool.process_action(mock_agent, action)
-        assert result is True
+        with patch('tinytroupe.validation.computer_use_validator.ComputerUseValidator.validate_and_refine') as mock_validate:
+            mock_validate.return_value = True
+            result = tool.process_action(mock_agent, action)
+            assert result is True
         mock_client_instance.predict.assert_called_with(api_name="/click", use_persistent=True, selector="#some-button", url="https://example.com")
         mock_agent.think.assert_called_with("Successfully performed action 'click'.")

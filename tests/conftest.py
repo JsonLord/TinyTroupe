@@ -1,9 +1,17 @@
+import pytest
+from tinytroupe.agent.tiny_person import TinyPerson
+
 ##########################
 # Global testing options
 ##########################
 refresh_cache = False
 use_cache = False
 #test_examples = False # will use Pytest markers instead
+
+@pytest.fixture(autouse=True)
+def clear_agent_registry():
+    """Clears the agent registry before each test."""
+    TinyPerson.all_agents = {}
 
 def pytest_addoption(parser):
     parser.addoption("--refresh_cache", action="store_true", help="Refreshes the API cache for the tests, to ensure the latest data is used.")
