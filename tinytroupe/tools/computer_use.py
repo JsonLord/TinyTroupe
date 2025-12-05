@@ -19,7 +19,7 @@ class ComputerUseTool(TinyToolUse):
             {"action": "press_key", "description": "Simulate pressing a sequence of keys, often used for typing or sending special key combinations. The keys should be provided as a list in the 'keys' parameter."}
         ]
         self.action_mapping = {
-            "navigate": "/browse_and_extract",
+            "navigate": "/get_page_info",
             "see": "/get-page-info",
             "click": "/click",
             "fill": "/fill",

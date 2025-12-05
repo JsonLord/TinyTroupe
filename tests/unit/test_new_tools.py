@@ -114,7 +114,7 @@ def test_computer_use_tool_navigate_action(mock_agent):
 
     result = tool.process_action(mock_agent, action)
     assert result is True
-    mock_client.predict.assert_called_with(api_name="/browse_and_extract", use_persistent=True, url="https://example.com")
+    mock_client.predict.assert_called_with(api_name="/get_page_info", use_persistent=True, url="https://example.com")
     # Let's check the think message separately to avoid brittleness with the page_info content
     assert "Successfully performed action 'navigate'." in mock_agent.think.call_args[0][0]
 
