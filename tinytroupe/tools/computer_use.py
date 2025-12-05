@@ -29,6 +29,9 @@ class ComputerUseTool(TinyToolUse):
             "hover": "/hover_element",
             "press_key": "/press_key"
         }
+        self.actions_requiring_url = [
+            "navigate", "see", "click", "fill", "submit", "wait", "scroll", "hover", "press_key"
+        ]
         if client:
             self.client = client
         else:
@@ -53,6 +56,11 @@ class ComputerUseTool(TinyToolUse):
                 params = {k: v for k, v in content.items() if k != 'action_name'}
                 params['use_persistent'] = True
 
+                # Ensure the URL is passed for all actions that require it
+                if 'url' not in params and action_name in self.actions_requiring_url:
+                    agent.think(f"Error: The '{action_name}' action requires a 'url' parameter.")
+                    return False
+
                 if action_name == 'press_key':
                     keys = params.get('keys', [])
                     results = []
@@ -66,6 +74,10 @@ class ComputerUseTool(TinyToolUse):
                     final_result = ", ".join(results)
                 else:
                     final_result = self.client.predict(api_name=api_name, **params)
+
+                if not final_result:
+                    agent.think(f"Error: No data retrieved for action '{action_name}'. The API call may have failed silently.")
+                    return False
 
                 if action_name == 'navigate':
                     if isinstance(final_result, dict):

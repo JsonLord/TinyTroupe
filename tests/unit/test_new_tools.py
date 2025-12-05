@@ -10,8 +10,8 @@ def mock_agent():
     agent = MagicMock()
     agent.name = "TestAgent"
     agent.think = MagicMock()
-    agent.memory = MagicMock()
-    agent.memory.add_observation = MagicMock()
+    agent.store_in_memory = MagicMock()
+    agent.iso_datetime = MagicMock()
     return agent
 
 def test_sequential_thinking_tool_process_action(mock_agent):
@@ -39,7 +39,8 @@ def test_computer_use_tool_click_action(mock_agent):
     tool = ComputerUseTool(client=mock_client)
     action_content = {
         "action_name": "click",
-        "selector": "#some-button"
+        "selector": "#some-button",
+        "url": "https://example.com"
     }
     action = {
         'type': 'computer_use',
@@ -50,7 +51,7 @@ def test_computer_use_tool_click_action(mock_agent):
 
     result = tool.process_action(mock_agent, action)
     assert result is True
-    mock_client.predict.assert_called_with(api_name="/click", use_persistent=True, selector="#some-button")
+    mock_client.predict.assert_called_with(api_name="/click", use_persistent=True, selector="#some-button", url="https://example.com")
     mock_agent.think.assert_called_with("Successfully performed action 'click'.")
 
 def test_computer_use_tool_fill_action(mock_agent):
@@ -60,7 +61,8 @@ def test_computer_use_tool_fill_action(mock_agent):
     action_content = {
         "action_name": "fill",
         "selector": "#username",
-        "text": "John Doe"
+        "text": "John Doe",
+        "url": "https://example.com"
     }
     action = {
         'type': 'computer_use',
@@ -71,7 +73,7 @@ def test_computer_use_tool_fill_action(mock_agent):
 
     result = tool.process_action(mock_agent, action)
     assert result is True
-    mock_client.predict.assert_called_with(api_name="/fill", use_persistent=True, selector="#username", text="John Doe")
+    mock_client.predict.assert_called_with(api_name="/fill", use_persistent=True, selector="#username", text="John Doe", url="https://example.com")
     mock_agent.think.assert_called_with("Successfully performed action 'fill'.")
 
 def test_computer_use_tool_press_key_action(mock_agent):
@@ -80,7 +82,8 @@ def test_computer_use_tool_press_key_action(mock_agent):
     tool = ComputerUseTool(client=mock_client)
     action_content = {
         "action_name": "press_key",
-        "keys": ["a", "b", "c"]
+        "keys": ["a", "b", "c"],
+        "url": "https://example.com"
     }
     action = {
         'type': 'computer_use',
@@ -125,7 +128,8 @@ def test_computer_use_tool_no_client_provided(mock_agent):
         tool = ComputerUseTool()
         action_content = {
             "action_name": "click",
-            "selector": "#some-button"
+            "selector": "#some-button",
+            "url": "https://example.com"
         }
         action = {
             'type': 'computer_use',
@@ -134,5 +138,5 @@ def test_computer_use_tool_no_client_provided(mock_agent):
 
         result = tool.process_action(mock_agent, action)
         assert result is True
-        mock_client_instance.predict.assert_called_with(api_name="/click", use_persistent=True, selector="#some-button")
+        mock_client_instance.predict.assert_called_with(api_name="/click", use_persistent=True, selector="#some-button", url="https://example.com")
         mock_agent.think.assert_called_with("Successfully performed action 'click'.")
