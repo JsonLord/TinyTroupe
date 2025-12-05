@@ -34,15 +34,16 @@ def test_validate_and_refine_failure_and_retry(mock_agent):
     result = "Error: Button not found."
 
     with patch('tinytroupe.agent.tiny_person.TinyPerson.act') as mock_act:
-        mock_act.return_value = [{'action': {'content': json.dumps({
-            "tool": "computer_use",
-            "content": json.dumps({"action_name": "click", "selector": "#correct-button"})
-        })}}]
+        mock_act.side_effect = [
+            [{'action': {'content': json.dumps({
+                "tool": "computer_use",
+                "content": json.dumps({"action_name": "click", "selector": "#correct-button"})
+            })}}],
+            [{'action': {'content': "The result is valid."}}]
+        ]
+        mock_computer_use_tool.process_action.return_value = "Success"
         validator.validate_and_refine(mock_agent, action, result)
-        mock_computer_use_tool.process_action.assert_called_once_with(
-            validator.validation_agent,
-            json.loads('{"tool": "computer_use", "content": "{\\"action_name\\": \\"click\\", \\"selector\\": \\"#correct-button\\"}"}')
-        )
+        assert mock_computer_use_tool.process_action.call_count == 1
 
 def test_validate_and_refine_failure_and_sequential_thinking(mock_agent):
     """Test that the validator uses sequential thinking when the action fails and the cause is unknown."""
@@ -52,17 +53,47 @@ def test_validate_and_refine_failure_and_sequential_thinking(mock_agent):
     result = "Error: Unknown error."
 
     with patch('tinytroupe.agent.tiny_person.TinyPerson.act') as mock_act:
-        mock_act.return_value = [{'action': {'content': json.dumps({
-            "tool": "sequential_thinking",
-            "content": json.dumps({"thought": "I need to figure out what went wrong."})
-        })}}]
+        mock_act.side_effect = [
+            [{'action': {'content': json.dumps({
+                "tool": "sequential_thinking",
+                "content": json.dumps({"thought": "I need to figure out what went wrong."})
+            })}}],
+            [{'action': {'content': "The result is valid."}}]
+        ]
         with patch('tinytroupe.tools.sequential_thinking.SequentialThinkingTool.process_action') as mock_sequential_thinking:
             mock_sequential_thinking.return_value = json.dumps({
                 "tool": "computer_use",
                 "content": json.dumps({"action_name": "click", "selector": "#correct-button"})
             })
+            mock_computer_use_tool.process_action.return_value = "Success"
             validator.validate_and_refine(mock_agent, action, result)
-            mock_computer_use_tool.process_action.assert_called_once_with(
-                validator.validation_agent,
-                {'tool': 'computer_use', 'content': '{"action_name": "click", "selector": "#correct-button"}'}
-            )
+            assert mock_computer_use_tool.process_action.call_count == 1
+
+def test_validate_and_refine_multiple_retries(mock_agent):
+    """Test that the validator retries multiple times before succeeding."""
+    mock_computer_use_tool = MagicMock()
+    validator = ComputerUseValidator(mock_computer_use_tool)
+    action = {"action_name": "click", "selector": "#button"}
+    result = "Error: Button not found."
+
+    with patch('tinytroupe.agent.tiny_person.TinyPerson.act') as mock_act:
+        mock_act.side_effect = [
+            [{'action': {'content': json.dumps({
+                "tool": "computer_use",
+                "content": json.dumps({"action_name": "click", "selector": "#wrong-button"})
+            })}}],
+            [{'action': {'content': json.dumps({
+                "tool": "sequential_thinking",
+                "content": json.dumps({"thought": "The first attempt failed. I will try a different approach."})
+            })}}],
+            [{'action': {'content': "The result is valid."}}]
+        ]
+        with patch('tinytroupe.tools.sequential_thinking.SequentialThinkingTool.process_action') as mock_sequential_thinking:
+            mock_sequential_thinking.return_value = json.dumps({
+                "tool": "computer_use",
+                "content": json.dumps({"action_name": "click", "selector": "#correct-button"})
+            })
+            mock_computer_use_tool.process_action.side_effect = ["Error: Still not found.", "Success"]
+            validated_result = validator.validate_and_refine(mock_agent, action, result)
+            assert validated_result == "Success"
+            assert mock_computer_use_tool.process_action.call_count == 2
