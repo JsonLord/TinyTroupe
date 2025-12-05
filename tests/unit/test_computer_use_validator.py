@@ -24,7 +24,7 @@ def test_validate_and_refine_success(mock_agent):
     with patch('tinytroupe.agent.tiny_person.TinyPerson.act') as mock_act:
         mock_act.return_value = [{'action': {'content': "The result is valid."}}]
         validated_result = validator.validate_and_refine(mock_agent, action, result)
-        assert validated_result == result
+        assert validated_result == "The result is valid."
 
 def test_validate_and_refine_failure_and_retry(mock_agent):
     """Test that the validator retries the action when the action fails."""
@@ -95,5 +95,36 @@ def test_validate_and_refine_multiple_retries(mock_agent):
             })
             mock_computer_use_tool.process_action.side_effect = ["Error: Still not found.", "Success"]
             validated_result = validator.validate_and_refine(mock_agent, action, result)
-            assert validated_result == "Success"
+            assert validated_result == "The result is valid."
             assert mock_computer_use_tool.process_action.call_count == 2
+
+def test_validate_and_refine_goal_oriented(mock_agent):
+    """Test that the validator can infer the user's goal and find a better tool for the job."""
+    mock_computer_use_tool = MagicMock()
+    validator = ComputerUseValidator(mock_computer_use_tool)
+    action = {"action_name": "navigate", "url": "https://example.com"}
+    result = "Successfully performed action 'navigate', but no page info was returned."
+
+    with patch('tinytroupe.agent.tiny_person.TinyPerson.act') as mock_act:
+        mock_act.side_effect = [
+            [{'action': {'content': json.dumps({
+                "tool": "file_reader",
+                "content": json.dumps({"filepath": "tinytroupe/tools/computer_use_documentation.txt"})
+            })}}],
+            [{'action': {'content': json.dumps({
+                "tool": "sequential_thinking",
+                "content": json.dumps({"thought": "The user wanted to see the page content, but the `navigate` action did not provide it. I should use the `get_html_source` action instead."})
+            })}}],
+            [{'action': {'content': "The result is valid."}}]
+        ]
+        with patch('tinytroupe.tools.file_reader.FileReaderTool.process_action') as mock_file_reader:
+            mock_file_reader.return_value = "API documentation..."
+            with patch('tinytroupe.tools.sequential_thinking.SequentialThinkingTool.process_action') as mock_sequential_thinking:
+                mock_sequential_thinking.return_value = json.dumps({
+                    "tool": "computer_use",
+                    "content": json.dumps({"action_name": "get_html_source", "url": "https://example.com"})
+                })
+                mock_computer_use_tool.process_action.return_value = "<html>...</html>"
+                validated_result = validator.validate_and_refine(mock_agent, action, result)
+                assert validated_result == "The result is valid."
+                assert mock_computer_use_tool.process_action.call_count == 1

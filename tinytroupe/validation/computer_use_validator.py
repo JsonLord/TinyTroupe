@@ -1,6 +1,7 @@
 import json
 from tinytroupe.agent.tiny_person import TinyPerson
 from tinytroupe.tools.sequential_thinking import SequentialThinkingTool
+from tinytroupe.tools.file_reader import FileReaderTool
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tinytroupe.tools.computer_use import ComputerUseTool
@@ -11,7 +12,7 @@ class ComputerUseValidator:
         self.computer_use_tool = computer_use_tool
         self.validation_agent = TinyPerson(
             name="ComputerUseValidator",
-            mental_faculties=[SequentialThinkingTool(), computer_use_tool]
+            mental_faculties=[SequentialThinkingTool(), computer_use_tool, FileReaderTool()]
         )
         self.validation_agent._persona["persona"] = "An AI agent that validates the output of the computer_use tool."
 
@@ -49,6 +50,8 @@ class ComputerUseValidator:
 
             Your task is to validate this result and refine it if necessary.
             - If the result is valid, return it to the user in a clear and concise message.
+            - If the result is "successful" but does not contain the expected data (e.g., "no page info returned"), you should use the file_reader tool to consult `tinytroupe/tools/computer_use_documentation.txt`.
+            - After reading the documentation, use the sequential_thinking tool to reason about the user's original goal and the available API calls to find a more suitable action.
             - If the result is invalid, use the sequential_thinking tool to determine the cause of the error and then use the computer_use tool to correct it.
             - If you have tried simple corrections and they have failed, you should use the sequential_thinking tool to reflect on the situation and come up with a better plan.
             - If you are unable to correct the error, return an error message to the user.
@@ -87,6 +90,6 @@ class ComputerUseValidator:
                     result = self.computer_use_tool.process_action(self.validation_agent, response_action)
             else:
                 # If the response is not a tool call, it means the result is valid.
-                return result
+                return response
         # If the loop completes, it means the validation agent was unable to correct the error.
         return "Error: Unable to validate the result after multiple retries."
