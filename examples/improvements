@@ -1,0 +1,39 @@
+What can be improved? 
+
+###Code Creation
+The people[0].pp_current_interactions() command shall be an inspiration to later filter the thoughts from the actions and showcase that.
+Maybe a log system to write thoughts into.
+
+Write a persona.act colab chain with google ai studio 
+
+--- code parts: 
+Take url to external website and run functionality test.   webuse via colab and apis or host on digital ocean.
+Run 10 persona agents. 
+
+Gather insights and do text analysis. 
+
+
+
+###Dashboard
+Create Plotly Dashboard with most important KPIs in Plotly Huggingface 
+API connection to register data and comments and visualise the datapoints
+
+
+###Simulation
+Cognition part can be manipulated and played around with.
+
+
+###Actions
+Act actions must be preconfigured. 
+System prompt must be modified to use tols accordingly. e.g. You are a ...[persona information] Your situation is that you are sitting in front of the computer screen and can perform actions on that computer screen via performing actions [command section descriptions.] 
+Break down the task at hand via [introduce sequential thinking api call or npx mcp server] 
+
+Which actions need to be part of it?
+- API call to webuse as [computeruse] action
+- API call to sequential thinking (clarify in prompt when and how to use it)    
+
+
+#Persona Creation
+Work backwards. What are the parts we need created, and what are the prompt changes to create that?
+
+Information from Astrid on messenger.

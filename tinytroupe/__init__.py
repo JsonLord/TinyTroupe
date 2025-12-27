@@ -40,7 +40,8 @@ class ConfigManager:
     def _initialize_from_config(self):
         """Initialize default values from config file"""
         config = utils.read_config_file()
-        
+
+        self._config["api_type"] = config["OpenAI"].get("API_TYPE", "openai")
         self._config["model"] = config["OpenAI"].get("MODEL", "gpt-4o")
         self._config["embedding_model"] = config["OpenAI"].get("EMBEDDING_MODEL", "text-embedding-3-small")
         if config["OpenAI"].get("API_TYPE") == "azure":
@@ -249,7 +250,7 @@ if config["OpenAI"].get("API_TYPE") == "azure":
                                                         api_version=default["azure_embedding_model_api_version"],
                                                         embed_batch_size=10)
 else:
-    llamaindex_openai_embed_model = OpenAIEmbedding(model=default["embedding_model"], embed_batch_size=10)
+    lamaindex_openai_embed_model = OpenAIEmbedding(model=default["embedding_model"], embed_batch_size=10, api_key=os.getenv("OPENAI_API_KEY"))
 Settings.embed_model = llamaindex_openai_embed_model
 
 
