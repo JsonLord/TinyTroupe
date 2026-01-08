@@ -10,14 +10,14 @@ from .loaders import load_example_agent_specification
 # Example 1: Oscar, the architect
 ###################################
 
-def create_oscar_the_architect():
-  return TinyPerson.load_specification(load_example_agent_specification("Oscar"))
+def create_oscar_the_architect(enable_browser=False):
+  return TinyPerson.load_specification(load_example_agent_specification("Oscar"), new_agent_name="Oscar", auto_rename_agent=False)
 
-def create_oscar_the_architect_2():
+def create_oscar_the_architect_2(enable_browser=False):
   """
   A purely programmatic way to create Oscar, the architect. Has less information than the one loaded from a file, just for demonstration purposes.
   """ 
-  oscar = TinyPerson("Oscar")
+  oscar = TinyPerson("Oscar", enable_browser=enable_browser)
 
   oscar.define("age", 30)
   oscar.define("nationality", "German")
@@ -76,14 +76,14 @@ def create_oscar_the_architect_2():
 #######################################
 # Example 2: Lisa, the Data Scientist
 #######################################
-def create_lisa_the_data_scientist():
-  return TinyPerson.load_specification(load_example_agent_specification("Lisa"))
+def create_lisa_the_data_scientist(enable_browser=False):
+  return TinyPerson.load_specification(load_example_agent_specification("Lisa"), new_agent_name="Lisa", auto_rename_agent=False)
 
-def create_lisa_the_data_scientist_2():
+def create_lisa_the_data_scientist_2(enable_browser=False):
   """ 
   A purely programmatic way to create Lisa, the data scientist. Has less information than the one loaded from a file, just for demonstration purposes
   """
-  lisa = TinyPerson("Lisa")
+  lisa = TinyPerson("Lisa", enable_browser=enable_browser)
 
   lisa.define("age", 28)
   lisa.define("nationality", "Canadian")
@@ -142,15 +142,15 @@ def create_lisa_the_data_scientist_2():
 ####################################
 # Example 3: Marcos, the physician
 ####################################	
-def create_marcos_the_physician():
-  return TinyPerson.load_specification(load_example_agent_specification("Marcos"))
+def create_marcos_the_physician(enable_browser=False):
+  return TinyPerson.load_specification(load_example_agent_specification("Marcos"), new_agent_name="Marcos", auto_rename_agent=False)
 
-def create_marcos_the_physician_2():
+def create_marcos_the_physician_2(enable_browser=False):
   """
   A purely programmatic way to create Marcos, the physician. Has less information than the one loaded from a file, just for demonstration purposes.
   """
 
-  marcos = TinyPerson("Marcos")
+  marcos = TinyPerson("Marcos", enable_browser=enable_browser)
 
   marcos.define("age", 35)
   marcos.define("nationality", "Brazilian")  
@@ -231,15 +231,15 @@ def create_marcos_the_physician_2():
 #################################
 # Example 4: Lila, the Linguist
 #################################
-def create_lila_the_linguist():
-  return TinyPerson.load_specification(load_example_agent_specification("Lila"))
+def create_lila_the_linguist(enable_browser=False):
+  return TinyPerson.load_specification(load_example_agent_specification("Lila"), new_agent_name="Lila", auto_rename_agent=False)
 
-def create_lila_the_linguist_2():
+def create_lila_the_linguist_2(enable_browser=False):
   """
   A purely programmatic way to create Lila, the linguist. Has less information than the one loaded from a file, just for demonstration purposes.
   """
 
-  lila = TinyPerson("Lila")
+  lila = TinyPerson("Lila", enable_browser=enable_browser)
 
   lila.define("age", 28)
   lila.define("nationality", "French")

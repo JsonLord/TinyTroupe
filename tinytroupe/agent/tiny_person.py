@@ -58,7 +58,8 @@ class TinyPerson(JsonSerializableRegistry):
                  episodic_memory=None,
                  semantic_memory=None,
                  mental_faculties:list=None,
-                 enable_basic_action_repetition_prevention:bool=True):
+                 enable_basic_action_repetition_prevention:bool=True,
+                 enable_browser:bool=False):
         """
         Creates a TinyPerson.
 
@@ -69,6 +70,7 @@ class TinyPerson(JsonSerializableRegistry):
             semantic_memory (SemanticMemory, optional): The memory implementation to use. Defaults to SemanticMemory().
             mental_faculties (list, optional): A list of mental faculties to add to the agent. Defaults to None.
             enable_basic_action_repetition_prevention (bool, optional): Whether to enable basic action repetition prevention. Defaults to True.
+            enable_browser (bool, optional): Whether to enable the browser faculty. Defaults to False.
         """
 
         # NOTE: default values will be given in the _post_init method, as that's shared by 
@@ -90,6 +92,8 @@ class TinyPerson(JsonSerializableRegistry):
         if enable_basic_action_repetition_prevention:
             self.enable_basic_action_repetition_prevention = enable_basic_action_repetition_prevention
         
+        self.enable_browser = enable_browser
+
         assert name is not None, "A TinyPerson must have a name."
         self.name = name
 
@@ -101,6 +105,11 @@ class TinyPerson(JsonSerializableRegistry):
         This will run after __init__, since the class has the @post_init decorator.
         It is convenient to separate some of the initialization processes to make deserialize easier.
         """
+
+        if "enable_browser" in kwargs:
+            self.enable_browser = kwargs["enable_browser"]
+        elif not hasattr(self, 'enable_browser'):
+            self.enable_browser = False
 
         from tinytroupe.agent.action_generator import ActionGenerator # import here to avoid circular import issues
 
@@ -158,6 +167,10 @@ class TinyPerson(JsonSerializableRegistry):
             from tinytroupe.agent.mental_faculty import SequentialThinkingFaculty
             self._mental_faculties = [SequentialThinkingFaculty()]
         
+        if self.enable_browser:
+            from tinytroupe.agent.browser_faculty import BrowserFaculty
+            self.add_mental_faculty(BrowserFaculty())
+
         # basic action repetition prevention
         if not hasattr(self, 'enable_basic_action_repetition_prevention'):
             self.enable_basic_action_repetition_prevention = True
@@ -210,7 +223,7 @@ class TinyPerson(JsonSerializableRegistry):
         # rename agent to some specific name?
         if kwargs.get("new_agent_name") is not None:
             self._rename(kwargs.get("new_agent_name"))
-        
+
         # If auto-rename, use the given name plus some new number ...
         if kwargs.get("auto_rename") is True:
             new_name = self.name # start with the current name
@@ -1603,7 +1616,7 @@ max_content_length=max_content_length,
     
     @staticmethod
     def load_specification(path_or_dict, suppress_mental_faculties=False, suppress_memory=False, suppress_mental_state=False, 
-                           auto_rename_agent=False, new_agent_name=None):
+                           auto_rename_agent=False, new_agent_name=None, enable_browser=False):
         """
         Loads a JSON agent specification.
 
@@ -1611,10 +1624,10 @@ max_content_length=max_content_length,
             path_or_dict (str or dict): The path to the JSON file or the dictionary itself.
             suppress_mental_faculties (bool, optional): Whether to suppress loading the mental faculties. Defaults to False.
             suppress_memory (bool, optional): Whether to suppress loading the memory. Defaults to False.
-            suppress_memory (bool, optional): Whether to suppress loading the memory. Defaults to False.
             suppress_mental_state (bool, optional): Whether to suppress loading the mental state. Defaults to False.
             auto_rename_agent (bool, optional): Whether to auto rename the agent. Defaults to False.
             new_agent_name (str, optional): The new name for the agent. Defaults to None.
+            enable_browser (bool, optional): Whether to enable the browser faculty. Defaults to False.
         """
 
         suppress_attributes = []
@@ -1634,7 +1647,7 @@ max_content_length=max_content_length,
 
         return TinyPerson.from_json(json_dict_or_path=path_or_dict, suppress=suppress_attributes, 
                                     serialization_type_field_name="type",
-                                    post_init_params={"auto_rename_agent": auto_rename_agent, "new_agent_name": new_agent_name})
+                                    post_init_params={"auto_rename_agent": auto_rename_agent, "new_agent_name": new_agent_name, "enable_browser": enable_browser})
     @staticmethod
     def load_specifications_from_folder(folder_path:str, file_suffix=".agent.json", suppress_mental_faculties=False, 
                                         suppress_memory=False, suppress_mental_state=False, auto_rename_agent=False, 
