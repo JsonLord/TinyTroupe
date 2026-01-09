@@ -141,7 +141,6 @@ class OpenAIClient:
             "messages": current_messages,
             "temperature": temperature,
             "max_tokens":max_tokens,
-            "top_p": top_p,
             "frequency_penalty": frequency_penalty,
             "presence_penalty": presence_penalty,
             "stop": stop,
@@ -149,6 +148,9 @@ class OpenAIClient:
             "stream": False,
             "n": n,
         }
+
+        if top_p is not None and top_p > 0:
+            chat_api_params["top_p"] = top_p
 
         if response_format is not None:
             chat_api_params["response_format"] = response_format
