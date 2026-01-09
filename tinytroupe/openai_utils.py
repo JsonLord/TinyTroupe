@@ -424,7 +424,7 @@ class HelmholtzBlabladorClient(OpenAIClient):
         """
         self.client = OpenAI(
             base_url="https://api.helmholtz-blablador.fz-juelich.de/v1",
-            api_key=os.getenv("HELMHOLTZ_BLABLADOR_API_KEY", "dummy"),
+            api_key=os.getenv("BLABLADOR_API_KEY", "dummy"),
         )
 
 ###########################################################################
