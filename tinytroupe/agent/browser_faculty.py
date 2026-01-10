@@ -18,23 +18,41 @@ class BrowserFaculty(TinyMentalFaculty):
         content = action.get("content")
         target = action.get("target")
 
-        if action_type == "NAVIGATE":
-            browser.navigate(target)
-            agent.see(f"Navigated to {target}")
+        if action_type == "See":
+            screenshot_path = browser.screenshot()
+            agent.see(f"Took a screenshot and saved it to {screenshot_path}. I will now analyze the screenshot.")
             return True
-        elif action_type == "CLICK":
+        elif action_type == "Click":
             browser.click(target)
             agent.see(f"Clicked on element with selector: {target}")
             return True
-        elif action_type == "TYPE":
-            browser.type_text(target, content)
+        elif action_type == "Write":
+            browser.fill(target, content)
             agent.see(f"Typed '{content}' into element with selector: {target}")
             return True
-        elif action_type == "SCREENSHOT":
-            screenshot_path = browser.screenshot()
-            agent.see(f"Took a screenshot and saved it to {screenshot_path}. I will now analyze the screenshot.")
-            # In a real implementation, you would then process the image.
-            # For now, we'll just acknowledge that a screenshot was taken.
+        elif action_type == "Submit":
+            browser.submit_form(target)
+            agent.see(f"Submitted form with element: {target}")
+            return True
+        elif action_type == "Wait":
+            browser.wait_for_element(target)
+            agent.see(f"Waited for element: {target}")
+            return True
+        elif action_type == "Scroll":
+            browser.scroll_page(content)
+            agent.see(f"Scrolled page {content}")
+            return True
+        elif action_type == "Hover":
+            browser.hover_element(target)
+            agent.see(f"Hovered over element: {target}")
+            return True
+        elif action_type == "Keyboard_Key":
+            browser.press_key(content)
+            agent.see(f"Pressed key: {content}")
+            return True
+        elif action_type == "ScanPage":
+            page_info = browser.get_page_info()
+            agent.see(f"Scanned page and found the following information: {page_info}")
             return True
         return False
 
@@ -43,10 +61,15 @@ class BrowserFaculty(TinyMentalFaculty):
         Returns the prompt for defining browser-related actions.
         """
         prompt = """
-          - NAVIGATE: Navigate to a specific URL. The `target` should be the URL.
-          - CLICK: Click on an element on the page. The `target` should be a CSS selector for the element.
-          - TYPE: Type text into an element on the page. The `target` should be a CSS selector for the element, and `content` should be the text to type.
-          - SCREENSHOT: Take a screenshot of the current page. The `content` will be a placeholder for vision, reminding you to analyze the image.
+          - See: Take a screenshot of the current page. The `content` will be a placeholder for vision.
+          - Click: Click on an element on the page. The `target` should be a CSS selector for the element.
+          - Write: Type text into an element on the page. The `target` should be a CSS selector for the element, and `content` should be the text to type.
+          - Submit: Submit a form on the page. The `target` should be a CSS selector for a form or an element within a form.
+          - Wait: Wait for an element to appear on the page. The `target` should be a CSS selector for the element.
+          - Scroll: Scroll the page. The `content` should be 'up' or 'down'.
+          - Hover: Hover over an element on the page. The `target` should be a CSS selector for the element.
+          - Keyboard_Key: Press a key on the keyboard. The `content` should be the key to press (e.g., 'Enter', 'ArrowDown').
+          - ScanPage: Get information about the current page, such as links and form elements.
         """
         return textwrap.dedent(prompt)
 
@@ -55,8 +78,8 @@ class BrowserFaculty(TinyMentalFaculty):
         Returns the prompt for defining constraints on browser-related actions.
         """
         prompt = """
-        - When asked to perform a task on a website, first NAVIGATE to the URL.
-        - Use CLICK and TYPE to interact with elements on the page to accomplish the task.
-        - Use SCREENSHOT to get a visual representation of the page to help you decide on the next action.
+        - Use See to get a visual representation of the page to help you decide on the next action.
+        - Use ScanPage to get a list of interactive elements to help you decide on the next action.
+        - Use Click, Write, and other actions to interact with elements on the page to accomplish the task.
         """
         return textwrap.dedent(prompt)
