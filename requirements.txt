@@ -1,0 +1,25 @@
+-e .
+gradio
+pandas
+pytest
+pytest-cov
+openai>=1.65
+tiktoken
+msal
+rich
+requests
+chevron
+llama-index
+llama-index-embeddings-huggingface
+llama-index-readers-web
+llama-index-embeddings-azure-openai
+pypandoc
+docx
+markdown
+jupyter
+matplotlib
+pydantic
+textdistance
+scipy
+transformers==4.38.2
+huggingface-hub==0.22.2
