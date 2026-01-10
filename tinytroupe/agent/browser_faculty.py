@@ -1,5 +1,5 @@
 from tinytroupe.agent.mental_faculty import TinyMentalFaculty
-from tinytroupe.tools import browser
+from tinytroupe.tools.browser import Browser
 import textwrap
 
 class BrowserFaculty(TinyMentalFaculty):
@@ -7,8 +7,11 @@ class BrowserFaculty(TinyMentalFaculty):
     A mental faculty that allows an agent to interact with a web browser.
     """
 
+
+
     def __init__(self):
         super().__init__("Browser Navigation")
+        self.browser = Browser()
 
     def process_action(self, agent, action: dict) -> bool:
         """
@@ -18,23 +21,53 @@ class BrowserFaculty(TinyMentalFaculty):
         content = action.get("content")
         target = action.get("target")
 
-        if action_type == "NAVIGATE":
-            browser.navigate(target)
-            agent.see(f"Navigated to {target}")
+        try:
+            tool, operation = action_type.split(":/", 1)
+        except ValueError:
+            return False
+
+        if tool not in ["Browser", "See", "Click", "Write", "Submit", "Wait", "Scroll", "Hover", "Keyboard_Key", "ScanPage"]:
+            return False
+
+        if operation == "NAVIGATE":
+            result = self.browser.navigate(target)
+            agent.see(result)
             return True
-        elif action_type == "CLICK":
-            browser.click(target)
-            agent.see(f"Clicked on element with selector: {target}")
+        elif operation == "Screenshot":
+            result = self.browser.screenshot()
+            agent.see(f"Screenshot result: {result}")
             return True
-        elif action_type == "TYPE":
-            browser.type_text(target, content)
-            agent.see(f"Typed '{content}' into element with selector: {target}")
+        elif operation == "Click":
+            result = self.browser.click(target)
+            agent.see(f"Click result: {result}")
             return True
-        elif action_type == "SCREENSHOT":
-            screenshot_path = browser.screenshot()
-            agent.see(f"Took a screenshot and saved it to {screenshot_path}. I will now analyze the screenshot.")
-            # In a real implementation, you would then process the image.
-            # For now, we'll just acknowledge that a screenshot was taken.
+        elif operation == "fill":
+            result = self.browser.fill(target, content)
+            agent.see(f"Fill result: {result}")
+            return True
+        elif operation == "submit_form":
+            result = self.browser.submit_form(target, content)
+            agent.see(f"Submit form result: {result}")
+            return True
+        elif operation == "wait_for_element":
+            result = self.browser.wait_for_element(target)
+            agent.see(f"Wait for element result: {result}")
+            return True
+        elif operation == "scroll_page":
+            result = self.browser.scroll_page(target)
+            agent.see(f"Scroll page result: {result}")
+            return True
+        elif operation == "hover_element":
+            result = self.browser.hover_element(target)
+            agent.see(f"Hover element result: {result}")
+            return True
+        elif operation == "press_key":
+            result = self.browser.press_key(content, target)
+            agent.see(f"Press key result: {result}")
+            return True
+        elif operation == "get_page_info":
+            result = self.browser.get_page_info()
+            agent.see(f"Get page info result: {result}")
             return True
         return False
 
@@ -43,10 +76,16 @@ class BrowserFaculty(TinyMentalFaculty):
         Returns the prompt for defining browser-related actions.
         """
         prompt = """
-          - NAVIGATE: Navigate to a specific URL. The `target` should be the URL.
-          - CLICK: Click on an element on the page. The `target` should be a CSS selector for the element.
-          - TYPE: Type text into an element on the page. The `target` should be a CSS selector for the element, and `content` should be the text to type.
-          - SCREENSHOT: Take a screenshot of the current page. The `content` will be a placeholder for vision, reminding you to analyze the image.
+          - Browser:/NAVIGATE: Navigate to a specific URL. The `target` should be the URL. This must be the first step.
+          - See:/Screenshot: Take a screenshot of the current page.
+          - Click:/Click: Click on an element on the page. The `target` should be a CSS selector for the element.
+          - Write:/fill: Type text into an element on the page. The `target` should be a CSS selector for the element, and `content` should be the text to type.
+          - Submit:/submit_form: Submit a form. The `target` should be a CSS selector for the form, and `content` should be a JSON string of the form data.
+          - Wait:/wait_for_element: Wait for an element to appear on the page. The `target` should be a CSS selector for the element.
+          - Scroll:/scroll_page: Scroll the page up or down. The `target` should be 'up' or 'down'.
+          - Hover:/hover_element: Hover over an element on the page. The `target` should be a CSS selector for the element.
+          - Keyboard_Key:/press_key: Press a key on the keyboard. The `content` should be the key to press (e.g., 'Enter', 'Escape'), and `target` can be an optional CSS selector.
+          - ScanPage:/get_page_info: Get information about the current page, such as the title and URL.
         """
         return textwrap.dedent(prompt)
 
@@ -55,8 +94,9 @@ class BrowserFaculty(TinyMentalFaculty):
         Returns the prompt for defining constraints on browser-related actions.
         """
         prompt = """
-        - When asked to perform a task on a website, first NAVIGATE to the URL.
-        - Use CLICK and TYPE to interact with elements on the page to accomplish the task.
-        - Use SCREENSHOT to get a visual representation of the page to help you decide on the next action.
+        - You must always NAVIGATE to a URL before performing any other browser action.
+        - Use See:/Screenshot to get a visual representation of the page to help you decide on the next action.
+        - Use Click:/Click, Write:/fill, and Submit:/submit_form to interact with elements on the page to accomplish the task.
+        - Use ScanPage:/get_page_info to understand the context of the current page.
         """
         return textwrap.dedent(prompt)
