@@ -1,4 +1,3 @@
--e .
 gradio
 pandas
 pytest
