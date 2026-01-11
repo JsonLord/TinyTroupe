@@ -429,6 +429,33 @@ class HelmholtzBlabladorClient(OpenAIClient):
             api_key=os.getenv("BLABLADOR_API_KEY", "dummy"),
         )
 
+def analyze_image(image_url: str, text_prompt: str) -> str:
+    """
+    Analyzes an image using the OpenAI Vision API.
+    """
+    try:
+        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        response = client.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": text_prompt},
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": image_url,
+                            "detail": "high"
+                        }
+                    },
+                ],
+            }],
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        logger.error(f"Error analyzing image: {e}")
+        return f"Error analyzing image: {e}"
+
 ###########################################################################
 # Exceptions
 ###########################################################################
@@ -520,6 +547,3 @@ def force_api_cache(cache_api_calls, cache_file_name=default["cache_file_name"])
 register_client("openai", OpenAIClient())
 register_client("azure", AzureClient())
 register_client("helmholtz-blablador", HelmholtzBlabladorClient())
-
-
-

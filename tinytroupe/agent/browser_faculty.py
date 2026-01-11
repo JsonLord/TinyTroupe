@@ -1,13 +1,13 @@
 from tinytroupe.agent.mental_faculty import TinyMentalFaculty
 from tinytroupe.tools.browser import Browser
+from tinytroupe.openai_utils import analyze_image
 import textwrap
+import json
 
 class BrowserFaculty(TinyMentalFaculty):
     """
     A mental faculty that allows an agent to interact with a web browser.
     """
-
-
 
     def __init__(self):
         super().__init__("Browser Navigation")
@@ -34,8 +34,30 @@ class BrowserFaculty(TinyMentalFaculty):
             agent.see(result)
             return True
         elif operation == "Screenshot":
-            result = self.browser.screenshot()
-            agent.see(f"Screenshot result: {result}")
+            image_url = self.browser.screenshot()
+
+            # Retrieve the last thought from the agent's memory
+            last_thought = ""
+            recent_memories = agent.episodic_memory.retrieve_recent()
+            for memory in reversed(recent_memories):
+                if memory.get('content', {}).get('action', {}).get('type') == 'SEQUENTIAL_THINKING':
+                    last_thought = memory['content']['action']['content']
+                    break
+
+            prompt = f"""
+            Analyze the following screenshot of a website.
+
+            **Agent's Last Thought:**
+            {last_thought}
+
+            **Instructions:**
+            1.  **Overall Description:** Provide a clear and concise description of the website's purpose and content.
+            2.  **Layout Analysis:** Describe the layout of the page, including the location of major elements like headers, navigation bars, main content areas, and footers.
+            3.  **Navigation Tips:** Identify and suggest potential navigation options, such as links, buttons, or menus, that the agent could use to proceed with its task.
+            4.  **Feedback:** Based on the agent's last thought, provide feedback and suggestions for the next action to take.
+            """
+            analysis = analyze_image(image_url, textwrap.dedent(prompt))
+            agent.see(f"Screenshot analysis: {analysis}")
             return True
         elif operation == "Click":
             result = self.browser.click(target)
@@ -77,7 +99,7 @@ class BrowserFaculty(TinyMentalFaculty):
         """
         prompt = """
           - Browser:/NAVIGATE: Navigate to a specific URL. The `target` should be the URL. This must be the first step.
-          - See:/Screenshot: Take a screenshot of the current page.
+          - See:/Screenshot: Take a screenshot of the current page and get a detailed analysis of its content and layout.
           - Click:/Click: Click on an element on the page. The `target` should be a CSS selector for the element.
           - Write:/fill: Type text into an element on the page. The `target` should be a CSS selector for the element, and `content` should be the text to type.
           - Submit:/submit_form: Submit a form. The `target` should be a CSS selector for the form, and `content` should be a JSON string of the form data.
@@ -95,7 +117,7 @@ class BrowserFaculty(TinyMentalFaculty):
         """
         prompt = """
         - You must always NAVIGATE to a URL before performing any other browser action.
-        - Use See:/Screenshot to get a visual representation of the page to help you decide on the next action.
+        - Use See:/Screenshot to get a visual representation and analysis of the page to help you decide on the next action.
         - Use Click:/Click, Write:/fill, and Submit:/submit_form to interact with elements on the page to accomplish the task.
         - Use ScanPage:/get_page_info to understand the context of the current page.
         """
