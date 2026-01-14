@@ -16,28 +16,18 @@ def read_config_file(use_cache=True, verbose=True) -> configparser.ConfigParser:
     else:
         config = configparser.ConfigParser()
 
-        # Read the default values in the module directory.
-        config_file_path = Path(__file__).parent.absolute() / '../config.ini'
-        print(f"Looking for default config on: {config_file_path}") if verbose else None
-        if config_file_path.exists():
-            config.read(config_file_path)
-            _config = config
-        else:
-            raise ValueError(f"Failed to find default config on: {config_file_path}")
+        # Hardcode the configuration values to avoid file parsing errors.
+        config.add_section('OpenAI')
+        config.set('OpenAI', 'API_TYPE', 'helmholtz-blablador')
+        config.set('OpenAI', 'MODEL', 'alias-large')
+        config.set('OpenAI', 'TOP_P', '1.0')
 
-        # Now, let's override any specific default value, if there's a custom .ini config. 
-        # Try the directory of the current main program
-        config_file_path = Path.cwd() / "config.ini"
-        if config_file_path.exists():
-            print(f"Found custom config on: {config_file_path}") if verbose else None
-            config.read(config_file_path) # this only overrides the values that are present in the custom config
-            _config = config
-            return config
-        else:
-            if verbose:
-                print(f"Failed to find custom config on: {config_file_path}") if verbose else None
-                print("Will use only default values. IF THINGS FAIL, TRY CUSTOMIZING MODEL, API TYPE, etc.") if verbose else None
-        
+        # Add a dummy Logging section as it is expected by the start_logger function
+        if not config.has_section('Logging'):
+            config.add_section('Logging')
+            config.set('Logging', 'LOGLEVEL', 'INFO')
+
+        _config = config
         return config
 
 def pretty_print_config(config):
@@ -70,11 +60,14 @@ def pretty_print_tinytroupe_version():
 def start_logger(config: configparser.ConfigParser):
     # create logger
     logger = logging.getLogger("tinytroupe")
-    log_level = config['Logging'].get('LOGLEVEL', 'INFO').upper()
+
+    # Check if 'Logging' section exists before trying to access it
+    log_level = 'INFO'
+    if config.has_section('Logging'):
+        log_level = config['Logging'].get('LOGLEVEL', 'INFO').upper()
     logger.setLevel(level=log_level)
 
     # Clear any existing handlers to prevent duplicates
-    # This is especially important in Jupyter notebooks where modules get reloaded
     for handler in logger.handlers[:]:
         logger.removeHandler(handler)
     
