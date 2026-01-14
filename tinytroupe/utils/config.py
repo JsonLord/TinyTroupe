@@ -10,25 +10,22 @@ _config = None
 def read_config_file(use_cache=True, verbose=True) -> configparser.ConfigParser:
     global _config
     if use_cache and _config is not None:
-        # if we have a cached config and accept that, return it
         return _config
     
-    else:
-        config = configparser.ConfigParser()
+    config = configparser.ConfigParser()
 
-        # Hardcode the configuration values to avoid file parsing errors.
-        config.add_section('OpenAI')
-        config.set('OpenAI', 'API_TYPE', 'helmholtz-blablador')
-        config.set('OpenAI', 'MODEL', 'alias-large')
-        config.set('OpenAI', 'TOP_P', '1.0')
+    # Hardcode the configuration values to prevent any file parsing errors.
+    config.add_section('OpenAI')
+    config.set('OpenAI', 'API_TYPE', 'helmholtz-blablador')
+    config.set('OpenAI', 'MODEL', 'alias-large')
+    config.set('OpenAI', 'TOP_P', '1.0')
 
-        # Add a dummy Logging section as it is expected by the start_logger function
-        if not config.has_section('Logging'):
-            config.add_section('Logging')
-            config.set('Logging', 'LOGLEVEL', 'INFO')
+    # Add a Logging section as it is expected by the start_logger function.
+    config.add_section('Logging')
+    config.set('Logging', 'LOGLEVEL', 'INFO')
 
-        _config = config
-        return config
+    _config = config
+    return config
 
 def pretty_print_config(config):
     print()
@@ -58,44 +55,27 @@ def pretty_print_tinytroupe_version():
     print(f"TinyTroupe version: {version}")
 
 def start_logger(config: configparser.ConfigParser):
-    # create logger
     logger = logging.getLogger("tinytroupe")
-
-    # Check if 'Logging' section exists before trying to access it
     log_level = 'INFO'
     if config.has_section('Logging'):
         log_level = config['Logging'].get('LOGLEVEL', 'INFO').upper()
     logger.setLevel(level=log_level)
 
-    # Clear any existing handlers to prevent duplicates
     for handler in logger.handlers[:]:
         logger.removeHandler(handler)
     
-    # Prevent propagation to avoid duplicate messages from parent loggers
     logger.propagate = False
 
-    # create console handler and set level to debug
     ch = logging.StreamHandler()
     ch.setLevel(log_level)
 
-    # create formatter
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-    # add formatter to ch
     ch.setFormatter(formatter)
-
-    # add ch to logger
     logger.addHandler(ch)
 
 def set_loglevel(log_level):
-    """
-    Sets the log level for the TinyTroupe logger.
-    Args:
-        log_level (str): The log level to set (e.g., 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL').
-    """
     logger = logging.getLogger("tinytroupe")
     logger.setLevel(level=log_level)
     
-    # Also update all handlers to the new log level
     for handler in logger.handlers:
         handler.setLevel(log_level)
