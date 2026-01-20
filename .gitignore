@@ -175,7 +175,7 @@ test_credentials.ini
 tests/test_credentials.ini
 
 # Generated log files
-persona_navigation.log
+interactive_navigation.log
 persona_ratings.txt
-api_interaction.log
-persona_navigator.out
+step1_navigation_result.png
+step2_article_click_result.png

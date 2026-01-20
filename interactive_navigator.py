@@ -43,24 +43,63 @@ def load_persona(filepath: str) -> dict:
         nav_logger.error(f"Error decoding JSON from {filepath}")
         return None
 
-def load_api_key():
-    """Loads the API key from config.ini and sets it as an environment variable."""
+def create_runtime_config():
+    """
+    Creates a complete config.ini file at runtime, ensuring all required
+    sections are present. It reads the user's API key from the template.
+    """
     config = configparser.ConfigParser()
-    config.read('config.ini')
-    if 'OpenAI' in config and 'BLABLADOR_API_KEY' in config['OpenAI']:
-        api_key = config['OpenAI']['BLABLADOR_API_KEY']
-        if api_key and api_key != 'your_api_key_here':
-            os.environ['BLABLADOR_API_KEY'] = api_key
-            nav_logger.info("BLABLADOR_API_KEY set from config.ini.")
-            return True
-    nav_logger.error("BLABLADOR_API_KEY not found or not set in config.ini. Please create a config.ini from the template and add your key.")
-    return False
+
+    # Read the template to get the user's API key
+    template_config = configparser.ConfigParser()
+    template_config.read('config.ini.template')
+
+    api_key = template_config.get('OpenAI', 'BLABLADOR_API_KEY', fallback='your_api_key_here')
+    if api_key == 'your_api_key_here':
+        nav_logger.error("API key not found in config.ini.template. Please add your key.")
+        return False
+
+    # Set the API key as an environment variable
+    os.environ['BLABLADOR_API_KEY'] = api_key
+    nav_logger.info("BLABLADOR_API_KEY set from config.ini.template.")
+
+    # Create all necessary sections
+    config['OpenAI'] = {
+        'API_TYPE': 'helmholtz-blablador',
+        'MODEL': 'alias-large',
+        'TOP_P': '1.0'
+    }
+    config['Simulation'] = {
+        'PARALLEL_AGENT_ACTIONS': 'True'
+    }
+    config['Cognition'] = {
+        'ENABLE_MEMORY_CONSOLIDATION': 'True',
+        'MIN_EPISODE_LENGTH': '15',
+        'MAX_EPISODE_LENGTH': '50',
+        'EPISODIC_MEMORY_FIXED_PREFIX_LENGTH': '10',
+        'EPISODIC_MEMORY_LOOKBACK_LENGTH': '20'
+    }
+    config['ActionGenerator'] = {
+        'MAX_ATTEMPTS': '2',
+        'ENABLE_QUALITY_CHECKS': 'False',
+        'CONTINUE_ON_FAILURE': 'True',
+        'QUALITY_THRESHOLD': '5'
+    }
+    config['Logging'] = {
+        'LOGLEVEL': 'INFO'
+    }
+
+    # Write the runtime config
+    with open('config.ini', 'w') as configfile:
+        config.write(configfile)
+
+    nav_logger.info("Runtime config.ini created successfully.")
+    return True
 
 async def main():
     """Main function for interactive persona navigation."""
-    if not load_api_key():
-        # For the interactive session, we can proceed without a key and I will generate the agent's responses.
-        nav_logger.warning("Could not load API key. Proceeding in interactive mode without a live agent.")
+    if not create_runtime_config():
+        return
 
     persona_spec = load_persona('persona.json')
     if not persona_spec:
@@ -72,7 +111,6 @@ async def main():
         return
 
     agent_name = persona_details.get("name", "UnnamedAgent")
-    # We create the agent, but will manually generate its responses.
     agent = TinyPerson(name=agent_name)
     agent.include_persona_definitions(persona_details)
 
