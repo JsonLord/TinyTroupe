@@ -234,7 +234,7 @@ else:
     from llama_index.embeddings.openai import OpenAIEmbedding
 
 from llama_index.core import Settings, Document, VectorStoreIndex, SimpleDirectoryReader
-from llama_index.readers.web import SimpleWebPageReader
+# from llama_index.readers.web import SimpleWebPageReader
 
 
 # this will be cached locally by llama-index, in a OS-dependend location

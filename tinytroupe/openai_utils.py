@@ -424,9 +424,13 @@ class HelmholtzBlabladorClient(OpenAIClient):
         """
         Sets up the Helmholtz Blablador API configurations for this client.
         """
+        api_key = os.getenv("BLABLADOR_API_KEY")
+        if not api_key or api_key == "dummy":
+            raise ValueError("BLABLADOR_API_KEY environment variable not set or is a dummy value. Please set it to your API key.")
+
         self.client = OpenAI(
             base_url="https://api.helmholtz-blablador.fz-juelich.de/v1",
-            api_key=os.getenv("BLABLADOR_API_KEY", "dummy"),
+            api_key=api_key,
         )
 
 def analyze_image(image_url: str, text_prompt: str) -> str:
