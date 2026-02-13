@@ -7,9 +7,11 @@ class SequentialThinkingTool(TinyToolUse):
     def __init__(self):
         super().__init__(tools=[self])
         self.url = "https://harvesthealth-sequential-thinking-mcp.hf.space/run"
+        self.name = "sequential_thinking"
+        self.description = "A tool for dynamic and reflective problem-solving through a sequence of thoughts, interacting with an external MCP server."
 
     def process_action(self, agent, action: dict) -> bool:
-        if action['type'] == 'SEQUENTIAL_THINKING':
+        if action['type'] == 'sequential_thinking':
             logger = get_logger(agent.name)
 
             try:
@@ -57,7 +59,58 @@ class SequentialThinkingTool(TinyToolUse):
             return {"error": str(e)}
 
     def actions_definitions_prompt(self) -> str:
-        return ""
+        return """
+        {
+          "name": "sequentialthinking",
+          "description": "A detailed tool for dynamic and reflective problem-solving through thoughts.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "thought": {
+                "type": "string",
+                "description": "Your current thinking step"
+              },
+              "nextThoughtNeeded": {
+                "type": "boolean",
+                "description": "Whether another thought step is needed"
+              },
+              "thoughtNumber": {
+                "type": "integer",
+                "description": "Current thought number (numeric value, e.g., 1, 2, 3)",
+                "minimum": 1
+              },
+              "totalThoughts": {
+                "type": "integer",
+                "description": "Estimated total thoughts needed (numeric value, e.g., 5, 10)",
+                "minimum": 1
+              },
+              "isRevision": {
+                "type": "boolean",
+                "description": "Whether this revises previous thinking"
+              },
+              "revisesThought": {
+                "type": "integer",
+                "description": "Which thought is being reconsidered",
+                "minimum": 1
+              },
+              "branchFromThought": {
+                "type": "integer",
+                "description": "Branching point thought number",
+                "minimum": 1
+              },
+              "branchId": {
+                "type": "string",
+                "description": "Branch identifier"
+              },
+              "needsMoreThoughts": {
+                "type": "boolean",
+                "description": "If more thoughts are needed"
+              }
+            },
+            "required": ["thought", "nextThoughtNeeded", "thoughtNumber", "totalThoughts"]
+          }
+        }
+        """
 
     def actions_constraints_prompt(self) -> str:
         return ""
