@@ -173,3 +173,9 @@ cython_debug/
 # Test credentials for secure API testing (should never be committed)
 test_credentials.ini
 tests/test_credentials.ini
+
+# Generated log files
+interactive_navigation.log
+persona_ratings.txt
+step1_navigation_result.png
+step2_article_click_result.png

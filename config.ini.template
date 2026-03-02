@@ -1,0 +1,7 @@
+[OpenAI]
+# To use the Helmholtz Blablador API, set API_TYPE to helmholtz-blablador
+# and provide your API key below.
+API_TYPE=helmholtz-blablador
+BLABLADOR_API_KEY=this_is_a_test_key
+MODEL=alias-large
+TOP_P=1.0
