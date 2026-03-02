@@ -141,7 +141,6 @@ class OpenAIClient:
             "messages": current_messages,
             "temperature": temperature,
             "max_tokens":max_tokens,
-            "top_p": top_p,
             "frequency_penalty": frequency_penalty,
             "presence_penalty": presence_penalty,
             "stop": stop,
@@ -149,6 +148,9 @@ class OpenAIClient:
             "stream": False,
             "n": n,
         }
+
+        if top_p is not None and top_p > 0:
+            chat_api_params["top_p"] = top_p
 
         if response_format is not None:
             chat_api_params["response_format"] = response_format
@@ -312,8 +314,8 @@ class OpenAIClient:
             elif "gpt-3.5-turbo" in model:
                 logger.debug("Token count: gpt-3.5-turbo may update over time. Returning num tokens assuming gpt-3.5-turbo-0613.")
                 return self._count_tokens(messages, model="gpt-3.5-turbo-0613")
-            elif ("gpt-4" in model) or ("ppo" in model) :
-                logger.debug("Token count: gpt-4 may update over time. Returning num tokens assuming gpt-4-0613.")
+            elif ("gpt-4" in model) or ("ppo" in model) or ("alias-large" in model):
+                logger.debug("Token count: gpt-4/alias-large may update over time. Returning num tokens assuming gpt-4-0613.")
                 return self._count_tokens(messages, model="gpt-4-0613")
             else:
                 raise NotImplementedError(
@@ -424,7 +426,7 @@ class HelmholtzBlabladorClient(OpenAIClient):
         """
         self.client = OpenAI(
             base_url="https://api.helmholtz-blablador.fz-juelich.de/v1",
-            api_key=os.getenv("HELMHOLTZ_BLABLADOR_API_KEY", "dummy"),
+            api_key=os.getenv("BLABLADOR_API_KEY", "dummy"),
         )
 
 ###########################################################################
