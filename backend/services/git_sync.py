@@ -16,7 +16,7 @@ class GitSyncService:
             os.makedirs(self.local_dir, exist_ok=True)
             logger.info(f"Cloning {self.repo_url} into {self.local_dir}...")
             try:
-                subprocess.run(["git", "clone", "--depth", "1", "-b", self.branch, self.repo_url, self.local_dir], check=True, capture_output=True, text=True)
+                subprocess.run(["git", "clone", "--depth", "1", "-b", self.branch, self.repo_url, self.local_dir], check=False, capture_output=True, text=True)
             except subprocess.CalledProcessError as e:
                 logger.error(f"Error cloning repository: {e.stderr}")
         else:
