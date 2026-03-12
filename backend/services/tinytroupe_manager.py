@@ -2,6 +2,7 @@ import concurrent.futures
 import time
 import os
 import json
+import re
 import logging
 from typing import List, Dict, Any
 import tinytroupe
@@ -35,10 +36,6 @@ class TinyTroupeSimulationManager:
 
             # 2. Generate missing personas via TinyTroupe LLM call
             if missing_count > 0:
-                # Setting config to point to Helmholtz endpoint. This is a bit of a hack as tinytroupe
-                # expects an INI file. In the previous implementation, the config file `tinytroupe/config.ini` was updated.
-                # Assuming the config correctly set to alias-large as per memory.
-
                 try:
                     factory = TinyPersonFactory(business_description)
                     for i in range(missing_count):
@@ -71,7 +68,6 @@ class TinyTroupeSimulationManager:
             # Push new personas
             if new_personas:
                 from backend.services.git_sync import git_sync
-                # background_push can be slow, might want to spawn another thread but for now it's fine in this executor
                 git_sync.background_push(commit_message=f"Added {len(new_personas)} new personas for job {job_id}")
 
             job_registry.update_job(
@@ -92,11 +88,9 @@ class TinyTroupeSimulationManager:
             # Instantiate TinyPersons
             persons = []
             for p_data in personas_data:
-                # We mock creating a TinyPerson from JSON data here.
-                # TinyPerson has a specific load_json method or init signature.
-                # For this implementation we'll instantiate them directly or use a mock.
                 try:
                     p = TinyPerson(name=p_data.get("name", "Unknown"))
+                    # Make sure TinyPerson uses the loaded dictionary for the _persona structure
                     p._persona = p_data
                     persons.append(p)
                 except Exception as e:
@@ -112,30 +106,55 @@ class TinyTroupeSimulationManager:
             def process_person(person: TinyPerson, index: int):
                 # Prompt the persona with the content
                 try:
-                    prompt = f"Please read this {format_type}: '{content_text}'. Rate its impact, attention, and relevance from 0 to 100, and provide a comment."
+                    # Instruct the persona to reply strictly in a JSON block
+                    prompt = (
+                        f"Please read this {format_type}:\n\n'{content_text}'\n\n"
+                        f"Based on your persona and interests, rate its impact, attention, and relevance from 0 to 100, "
+                        f"and provide a short comment analyzing it.\n"
+                        f"Respond strictly with a JSON block in the following format:\n"
+                        f"{{\n"
+                        f"  \"impact_score\": 85,\n"
+                        f"  \"attention\": 90,\n"
+                        f"  \"relevance\": 88,\n"
+                        f"  \"comment\": \"Your detailed comment here.\"\n"
+                        f"}}"
+                    )
 
-                    # Instead of actually calling LLM which could block or fail during tests,
-                    # we do a mock interaction, or if connected, a real one.
-                    # person.listen_and_act(prompt)
-                    # response = person.pop_actions_and_get_contents_for("TALK", False)
+                    person.listen_and_act(prompt)
+                    response_texts = person.pop_actions_and_get_contents_for("TALK", False)
 
-                    # For stability on Hugging Face spaces without a paid API key, use simulated response:
-                    time.sleep(1) # simulate think time
+                    # Ensure we have a string
+                    full_text = " ".join(response_texts) if isinstance(response_texts, list) else str(response_texts)
 
-                    simulated_response = {
+                    # Fallback default
+                    parsed_response = {
                         "name": person.name,
-                        "impact_score": 85,
-                        "attention": 90,
-                        "relevance": 88,
-                        "comment": f"As someone interested in {person._persona.get('occupation', 'this topic')}, I found this very engaging."
+                        "impact_score": 50,
+                        "attention": 50,
+                        "relevance": 50,
+                        "comment": full_text[:200] + "..." if len(full_text) > 200 else full_text
                     }
+
+                    # Attempt to extract JSON block
+                    json_match = re.search(r"\{.*\}", full_text, re.DOTALL)
+                    if json_match:
+                        try:
+                            extracted_data = json.loads(json_match.group(0))
+                            parsed_response.update({
+                                "impact_score": extracted_data.get("impact_score", 50),
+                                "attention": extracted_data.get("attention", 50),
+                                "relevance": extracted_data.get("relevance", 50),
+                                "comment": extracted_data.get("comment", parsed_response["comment"])
+                            })
+                        except json.JSONDecodeError:
+                            logger.warning(f"Failed to decode JSON from {person.name}'s response: {full_text}")
 
                     # Update progress
                     current_prog = job_registry.get_job(job_id).get("progress_percentage", 10)
                     progress_increment = 80 // len(persons)
                     job_registry.update_job(job_id, progress_percentage=current_prog + progress_increment)
 
-                    return simulated_response
+                    return parsed_response
 
                 except Exception as e:
                     logger.error(f"Person {person.name} failed to process: {e}")
