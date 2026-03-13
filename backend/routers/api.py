@@ -18,8 +18,8 @@ async def start_simulation(request: SimulationRequest, background_tasks: Backgro
     # In a real scenario, fetch personas from a DB/storage based on request.focus_group_id
     # Here we simulate fetching 2 personas for the given focus group
     mock_personas_data = [
-        {"name": "Tech Founder 1", "occupation": "Software Engineer"},
-        {"name": "Tech Founder 2", "occupation": "Product Manager"}
+        {"name": f"Tech Founder 1_{job_id[:4]}", "occupation": "Software Engineer"},
+        {"name": f"Tech Founder 2_{job_id[:4]}", "occupation": "Product Manager"}
     ]
 
     background_tasks.add_task(

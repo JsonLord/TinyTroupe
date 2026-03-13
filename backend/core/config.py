@@ -12,3 +12,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env")
 
 settings = Settings()
+
+import os
+if settings.BLABLADOR_API_KEY:
+    os.environ['OPENAI_API_KEY'] = settings.BLABLADOR_API_KEY or 'dummy_token'

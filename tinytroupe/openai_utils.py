@@ -52,7 +52,7 @@ class OpenAIClient:
         """
         Sets up the OpenAI API configurations for this client.
         """
-        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY", os.getenv("BLABLADOR_API_KEY", "dummy_token")), base_url=os.getenv("HELMHOLTZ_BLABLADOR_ENDPOINT", "https://api.helmholtz-blablador.fz-juelich.de/v1"))
 
     @config_manager.config_defaults(
         model="model",

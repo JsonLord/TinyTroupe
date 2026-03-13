@@ -34,7 +34,7 @@ def run_simulation(sim_name, content_input, content_format, num_personas_sim, fo
     job_registry.create_job(job_id)
 
     # We mock fetch some personas for this UI interaction based on the count requested
-    mock_personas_data = [{"name": f"Agent {i}", "occupation": "Reviewer"} for i in range(int(num_personas_sim))]
+    mock_personas_data = [{"name": f"Agent {i}_{job_id[:4]}", "occupation": "Reviewer"} for i in range(int(num_personas_sim))]
 
     tinytroupe_manager.run_simulation_async(
         job_id,
