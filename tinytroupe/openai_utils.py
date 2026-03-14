@@ -224,6 +224,14 @@ class OpenAIClient:
         return None
     
     def _raw_model_call(self, model, chat_api_params):
+
+        # Ensure system message is strictly first
+        if "messages" in chat_api_params:
+            system_msgs = [m for m in chat_api_params["messages"] if m.get("role") == "system"]
+            other_msgs = [m for m in chat_api_params["messages"] if m.get("role") != "system"]
+            chat_api_params["messages"] = system_msgs + other_msgs
+
+
         """
         Calls the OpenAI API with the given parameters. Subclasses should
         override this method to implement their own API calls.
