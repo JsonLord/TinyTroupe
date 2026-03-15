@@ -8,6 +8,7 @@ from typing import List, Dict, Any
 import tinytroupe
 from tinytroupe.agent import TinyPerson
 from tinytroupe.factory import TinyPersonFactory
+from tinytroupe.extraction import ResultsExtractor
 from backend.core.config import settings
 from backend.services.persona_matcher import persona_matcher
 
@@ -37,11 +38,18 @@ class TinyTroupeSimulationManager:
             # 2. Generate missing personas via TinyTroupe LLM call
             if missing_count > 0:
                 try:
-                    factory = TinyPersonFactory(business_description)
-                    for i in range(missing_count):
-                        logger.info(f"Job {job_id}: Generating persona {i+1}/{missing_count}...")
+                    # Utilize the TinyPersonFactory dynamic population pattern
+                    factory = TinyPersonFactory(
+                        sampling_space_description=customer_profile,
+                        total_population_size=missing_count,
+                        context=business_description
+                    )
 
-                        person = factory.generate_person(customer_profile)
+                    logger.info(f"Job {job_id}: Generating {missing_count} personas via TinyPersonFactory...")
+
+                    people = factory.generate_people(missing_count)
+
+                    for i, person in enumerate(people):
                         if person:
                             persona_data = person._persona
                             persona_data["_assureness_score"] = 100 # New ones are perfectly matched to the description
@@ -104,54 +112,45 @@ class TinyTroupeSimulationManager:
 
             # Run in parallel using the ThreadPoolExecutor
             def process_person(person: TinyPerson, index: int):
-                # Prompt the persona with the content
                 try:
-                    # Instruct the persona to reply strictly in a JSON block
-                    prompt = (
-                        f"Please read this {format_type}:\n\n'{content_text}'\n\n"
-                        f"Based on your persona and interests, rate its impact, attention, and relevance from 0 to 100, "
-                        f"and provide a short comment analyzing it.\n"
-                        f"Respond strictly with a JSON block in the following format:\n"
-                        f"{{\n"
-                        f"  \"impact_score\": 85,\n"
-                        f"  \"attention\": 90,\n"
-                        f"  \"relevance\": 88,\n"
-                        f"  \"comment\": \"Your detailed comment here.\"\n"
-                        f"}}"
+                    # Send prompt context
+                    prompt = f"Please read this {format_type}:\n\n'{content_text}'"
+                    person.listen_and_act(prompt)
+
+                    # Use TinyTroupe native ResultsExtractor
+                    extractor = ResultsExtractor()
+                    objective = "Rate the impact, attention, and relevance of the content based on the agent's background. Ratings must be integer scores between 0 and 100. Also provide a detailed analytical comment."
+
+                    extracted_data = extractor.extract_results_from_agent(
+                        person,
+                        extraction_objective=objective,
+                        situation=f"Testing a new {format_type}",
+                        fields=["impact_score", "attention", "relevance", "comment"],
+                        fields_hints={
+                            "impact_score": "Integer between 0 and 100",
+                            "attention": "Integer between 0 and 100",
+                            "relevance": "Integer between 0 and 100",
+                            "comment": "A string containing a descriptive paragraph"
+                        },
+                        verbose=False
                     )
 
-                    person.listen_and_act(prompt)
-                    response_texts = person.pop_actions_and_get_contents_for("TALK", False)
+                    # Safe parsing fallback
+                    if extracted_data is None or type(extracted_data) is not dict:
+                        extracted_data = {}
+                        extracted_data = {}
 
-                    # Ensure we have a string
-                    full_text = " ".join(response_texts) if isinstance(response_texts, list) else str(response_texts)
-
-                    # Fallback default
                     parsed_response = {
                         "name": person.name,
-                        "impact_score": 50,
-                        "attention": 50,
-                        "relevance": 50,
-                        "comment": full_text[:200] + "..." if len(full_text) > 200 else full_text
+                        "impact_score": int(extracted_data.get("impact_score", 50)),
+                        "attention": int(extracted_data.get("attention", 50)),
+                        "relevance": int(extracted_data.get("relevance", 50)),
+                        "comment": extracted_data.get("comment", "No comment provided.")
                     }
-
-                    # Attempt to extract JSON block
-                    json_match = re.search(r"\{.*\}", full_text, re.DOTALL)
-                    if json_match:
-                        try:
-                            extracted_data = json.loads(json_match.group(0))
-                            parsed_response.update({
-                                "impact_score": extracted_data.get("impact_score", 50),
-                                "attention": extracted_data.get("attention", 50),
-                                "relevance": extracted_data.get("relevance", 50),
-                                "comment": extracted_data.get("comment", parsed_response["comment"])
-                            })
-                        except json.JSONDecodeError:
-                            logger.warning(f"Failed to decode JSON from {person.name}'s response: {full_text}")
 
                     # Update progress
                     current_prog = job_registry.get_job(job_id).get("progress_percentage", 10)
-                    progress_increment = 80 // len(persons)
+                    progress_increment = max(1, 80 // len(persons))
                     job_registry.update_job(job_id, progress_percentage=current_prog + progress_increment)
 
                     return parsed_response

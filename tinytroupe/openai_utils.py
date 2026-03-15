@@ -226,10 +226,16 @@ class OpenAIClient:
     def _raw_model_call(self, model, chat_api_params):
 
         # Ensure system message is strictly first
+
         if "messages" in chat_api_params:
             system_msgs = [m for m in chat_api_params["messages"] if m.get("role") == "system"]
             other_msgs = [m for m in chat_api_params["messages"] if m.get("role") != "system"]
-            chat_api_params["messages"] = system_msgs + other_msgs
+
+            # Combine all system messages into one single system message block to satisfy strict ChatML
+            if system_msgs:
+                combined_content = "\n\n".join([m.get("content", "") for m in system_msgs])
+                chat_api_params["messages"] = [{"role": "system", "content": combined_content}] + other_msgs
+
 
 
         """
@@ -320,7 +326,7 @@ class OpenAIClient:
             elif "gpt-3.5-turbo" in model:
                 logger.debug("Token count: gpt-3.5-turbo may update over time. Returning num tokens assuming gpt-3.5-turbo-0613.")
                 return self._count_tokens(messages, model="gpt-3.5-turbo-0613")
-            elif ("gpt-4" in model) or ("ppo" in model) :
+            elif ("gpt-4" in model) or ("ppo" in model) or ("alias-" in model):
                 logger.debug("Token count: gpt-4 may update over time. Returning num tokens assuming gpt-4-0613.")
                 return self._count_tokens(messages, model="gpt-4-0613")
             else:
