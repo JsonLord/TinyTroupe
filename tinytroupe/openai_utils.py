@@ -31,6 +31,8 @@ class OpenAIClient:
     def __init__(self, cache_api_calls=default["cache_api_calls"], cache_file_name=default["cache_file_name"]) -> None:
         logger.debug("Initializing OpenAIClient")
 
+        self.client = None
+
         # should we cache api calls and reuse them?
         self.set_api_cache(cache_api_calls, cache_file_name)
     
@@ -52,7 +54,8 @@ class OpenAIClient:
         """
         Sets up the OpenAI API configurations for this client.
         """
-        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY", os.getenv("BLABLADOR_API_KEY", "dummy_token")), base_url=os.getenv("HELMHOLTZ_BLABLADOR_ENDPOINT", "https://api.helmholtz-blablador.fz-juelich.de/v1"))
+        if self.client is None:
+            self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     @config_manager.config_defaults(
         model="model",
@@ -141,7 +144,6 @@ class OpenAIClient:
             "messages": current_messages,
             "temperature": temperature,
             "max_tokens":max_tokens,
-            "top_p": top_p,
             "frequency_penalty": frequency_penalty,
             "presence_penalty": presence_penalty,
             "stop": stop,
@@ -150,18 +152,40 @@ class OpenAIClient:
             "n": n,
         }
 
+        if top_p is not None and top_p > 0:
+            chat_api_params["top_p"] = top_p
+
         if response_format is not None:
             chat_api_params["response_format"] = response_format
 
         i = 0
-        while i < max_attempts:
+        while True:
             try:
                 i += 1
 
+                #
+                # Model fallback and retry strategy requested by the user:
+                # 1. alias-fast for 3 attempts, 35s wait
+                # 2. alias-large for 2 attempts, 35s wait
+                # 3. alias-huge until success, 60s wait
+                #
+                # Model fallback strategy using config
+                if i <= 3:
+                    current_model = config["OpenAI"].get("MODEL", "alias-large")
+                    current_wait_time = 35
+                elif i <= 5:
+                    current_model = config["OpenAI"].get("FALLBACK_MODEL_LARGE", "alias-large")
+                    current_wait_time = 35
+                else:
+                    current_model = config["OpenAI"].get("FALLBACK_MODEL_HUGE", "alias-huge")
+                    current_wait_time = 60
+
+                chat_api_params["model"] = current_model
+
                 try:
-                    logger.debug(f"Sending messages to OpenAI API. Token count={self._count_tokens(current_messages, model)}.")
+                    logger.debug(f"Sending messages to OpenAI API. Model={current_model}. Token count={self._count_tokens(current_messages, current_model)}.")
                 except NotImplementedError:
-                    logger.debug(f"Token count not implemented for model {model}.")
+                    logger.debug(f"Token count not implemented for model {current_model}.")
                     
                 start_time = time.monotonic()
                 logger.debug(f"Calling model with client class {self.__class__.__name__}.")
@@ -169,15 +193,11 @@ class OpenAIClient:
                 ###############################################################
                 # call the model, either from the cache or from the API
                 ###############################################################
-                cache_key = str((model, chat_api_params)) # need string to be hashable
+                cache_key = str((current_model, chat_api_params)) # need string to be hashable
                 if self.cache_api_calls and (cache_key in self.api_cache):
                     response = self.api_cache[cache_key]
                 else:
-                    if waiting_time > 0:
-                        logger.info(f"Waiting {waiting_time} seconds before next API request (to avoid throttling)...")
-                        time.sleep(waiting_time)
-                    
-                    response = self._raw_model_call(model, chat_api_params)
+                    response = self._raw_model_call(current_model, chat_api_params)
                     if self.cache_api_calls:
                         self.api_cache[cache_key] = response
                         self._save_cache()
@@ -193,51 +213,23 @@ class OpenAIClient:
                 else:
                     return utils.sanitize_dict(self._raw_model_response_extractor(response))
 
-            except InvalidRequestError as e:
+            except (InvalidRequestError, openai.BadRequestError) as e:
                 logger.error(f"[{i}] Invalid request error, won't retry: {e}")
-
-                # there's no point in retrying if the request is invalid
-                # so we return None right away
                 return None
             
-            except openai.BadRequestError as e:
-                logger.error(f"[{i}] Invalid request error, won't retry: {e}")
-                
-                # there's no point in retrying if the request is invalid
-                # so we return None right away
-                return None
-            
-            except openai.RateLimitError:
-                logger.warning(
-                    f"[{i}] Rate limit error, waiting a bit and trying again.")
-                aux_exponential_backoff()
-            
-            except NonTerminalError as e:
-                logger.error(f"[{i}] Non-terminal error: {e}")
-                aux_exponential_backoff()
-                
-            except Exception as e:
-                logger.error(f"[{i}] {type(e).__name__} Error: {e}")
-                aux_exponential_backoff()
+            except (openai.RateLimitError,
+                    openai.APITimeoutError,
+                    openai.APIConnectionError,
+                    openai.InternalServerError,
+                    NonTerminalError,
+                    Exception) as e:
+                msg = f"[{i}] {type(e).__name__} Error with {current_model}: {e}. Waiting {current_wait_time} seconds before next attempt..."
+                logger.warning(msg)
 
-        logger.error(f"Failed to get response after {max_attempts} attempts.")
-        return None
+                time.sleep(current_wait_time)
+                continue
     
     def _raw_model_call(self, model, chat_api_params):
-
-        # Ensure system message is strictly first
-
-        if "messages" in chat_api_params:
-            system_msgs = [m for m in chat_api_params["messages"] if m.get("role") == "system"]
-            other_msgs = [m for m in chat_api_params["messages"] if m.get("role") != "system"]
-
-            # Combine all system messages into one single system message block to satisfy strict ChatML
-            if system_msgs:
-                combined_content = "\n\n".join([m.get("content", "") for m in system_msgs])
-                chat_api_params["messages"] = [{"role": "system", "content": combined_content}] + other_msgs
-
-
-
         """
         Calls the OpenAI API with the given parameters. Subclasses should
         override this method to implement their own API calls.
@@ -258,44 +250,34 @@ class OpenAIClient:
             chat_api_params["reasoning_effort"] = default["reasoning_effort"]
 
 
-        # To make the log cleaner, we remove the messages from the logged parameters
-        logged_params = {k: v for k, v in chat_api_params.items() if k != "messages"} 
+        # To make the log cleaner, we remove the messages from the logged parameters,
+        # unless we are in debug mode
+        if logger.getEffectiveLevel() <= logging.DEBUG:
+            logged_params = chat_api_params
+        else:
+            logged_params = {k: v for k, v in chat_api_params.items() if k != "messages"}
 
-        # --- GOOGLE FALLBACK INJECTION ---
-        import os
-        from openai import OpenAI
+        if "response_format" in chat_api_params:
+            # to enforce the response format via pydantic, we need to use a different method
 
-        try:
-            if "response_format" in chat_api_params:
-                if "stream" in chat_api_params: del chat_api_params["stream"]
-                result_message = self.client.beta.chat.completions.parse(**chat_api_params)
-                return result_message
-            else:
-                return self.client.chat.completions.create(**chat_api_params)
+            if "stream" in chat_api_params:
+                del chat_api_params["stream"]
 
-        except Exception as e:
-            logger.warning(f"Primary model call failed ({e}). Falling back to Google gemini-3-flash-preview...")
+            logger.debug(f"Calling LLM model (using .parse too) with these parameters: {logged_params}. Not showing 'messages' parameter.")
+            # complete message
+            logger.debug(f"   --> Complete messages sent to LLM: {chat_api_params['messages']}")
 
-            google_client = OpenAI(
-                api_key=os.environ.get("GOOGLE_API_KEY", "missing_google_key"),
-                base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
-            )
-            chat_api_params["model"] = "gemini-3-flash-preview"
+            result_message = self.client.beta.chat.completions.parse(
+                    **chat_api_params
+                )
 
-            # Remove parameters Google OpenAI compat endpoint might not support
-            if "response_format" in chat_api_params:
-                del chat_api_params["response_format"]
-            if "reasoning_effort" in chat_api_params:
-                del chat_api_params["reasoning_effort"]
-            if "frequency_penalty" in chat_api_params:
-                del chat_api_params["frequency_penalty"]
-            if "presence_penalty" in chat_api_params:
-                del chat_api_params["presence_penalty"]
-            if "max_completion_tokens" in chat_api_params:
-                chat_api_params["max_tokens"] = chat_api_params.pop("max_completion_tokens")
+            return result_message
 
-            return google_client.chat.completions.create(**chat_api_params)
-        # ----------------------------------
+        else:
+            logger.debug(f"Calling LLM model with these parameters: {logged_params}. Not showing 'messages' parameter.")
+            return self.client.chat.completions.create(
+                        **chat_api_params
+                    )
 
     def _is_reasoning_model(self, model):
         return "o1" in model or "o3" in model
@@ -340,8 +322,8 @@ class OpenAIClient:
             elif "gpt-3.5-turbo" in model:
                 logger.debug("Token count: gpt-3.5-turbo may update over time. Returning num tokens assuming gpt-3.5-turbo-0613.")
                 return self._count_tokens(messages, model="gpt-3.5-turbo-0613")
-            elif ("gpt-4" in model) or ("ppo" in model) or ("alias-" in model):
-                logger.debug("Token count: gpt-4 may update over time. Returning num tokens assuming gpt-4-0613.")
+            elif ("gpt-4" in model) or ("ppo" in model) or ("alias-large" in model) or ("alias-huge" in model) or ("alias-large" in model):
+                logger.debug("Token count: gpt-4/alias-large may update over time. Returning num tokens assuming gpt-4-0613.")
                 return self._count_tokens(messages, model="gpt-4-0613")
             else:
                 raise NotImplementedError(
@@ -422,23 +404,40 @@ class AzureClient(OpenAIClient):
         Sets up the Azure OpenAI Service API configurations for this client,
         including the API endpoint and key.
         """
-        if os.getenv("AZURE_OPENAI_KEY"):
-            logger.info("Using Azure OpenAI Service API with key.")
-            self.client = AzureOpenAI(azure_endpoint= os.getenv("AZURE_OPENAI_ENDPOINT"),
-                                    api_version = config["OpenAI"]["AZURE_API_VERSION"],
-                                    api_key = os.getenv("AZURE_OPENAI_KEY"))
-        else:  # Use Entra ID Auth
-            logger.info("Using Azure OpenAI Service API with Entra ID Auth.")
-            from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+        if self.client is None:
+            if os.getenv("AZURE_OPENAI_KEY"):
+                logger.info("Using Azure OpenAI Service API with key.")
+                self.client = AzureOpenAI(azure_endpoint= os.getenv("AZURE_OPENAI_ENDPOINT"),
+                                        api_version = config["OpenAI"]["AZURE_API_VERSION"],
+                                        api_key = os.getenv("AZURE_OPENAI_KEY"))
+            else:  # Use Entra ID Auth
+                logger.info("Using Azure OpenAI Service API with Entra ID Auth.")
+                from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 
-            credential = DefaultAzureCredential()
-            token_provider = get_bearer_token_provider(credential, "https://cognitiveservices.azure.com/.default")
-            self.client = AzureOpenAI(
-                azure_endpoint= os.getenv("AZURE_OPENAI_ENDPOINT"),
-                api_version = config["OpenAI"]["AZURE_API_VERSION"],
-                azure_ad_token_provider=token_provider
+                credential = DefaultAzureCredential()
+                token_provider = get_bearer_token_provider(credential, "https://cognitiveservices.azure.com/.default")
+                self.client = AzureOpenAI(
+                    azure_endpoint= os.getenv("AZURE_OPENAI_ENDPOINT"),
+                    api_version = config["OpenAI"]["AZURE_API_VERSION"],
+                    azure_ad_token_provider=token_provider
+                )
+
+
+class HelmholtzBlabladorClient(OpenAIClient):
+
+    def __init__(self, cache_api_calls=default["cache_api_calls"], cache_file_name=default["cache_file_name"]) -> None:
+        logger.debug("Initializing HelmholtzBlabladorClient")
+        super().__init__(cache_api_calls, cache_file_name)
+
+    def _setup_from_config(self):
+        """
+        Sets up the Helmholtz Blablador API configurations for this client.
+        """
+        if self.client is None:
+            self.client = OpenAI(
+                base_url="https://api.helmholtz-blablador.fz-juelich.de/v1",
+                api_key=os.getenv("BLABLADOR_API_KEY", "dummy"),
             )
-    
 
 ###########################################################################
 # Exceptions
@@ -530,6 +529,7 @@ def force_api_cache(cache_api_calls, cache_file_name=default["cache_file_name"])
 # default client
 register_client("openai", OpenAIClient())
 register_client("azure", AzureClient())
+register_client("helmholtz-blablador", HelmholtzBlabladorClient())
 
 
 
