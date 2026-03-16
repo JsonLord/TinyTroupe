@@ -55,7 +55,7 @@ class OpenAIClient:
         Sets up the OpenAI API configurations for this client.
         """
         if self.client is None:
-            self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+            self.client = OpenAI(api_key=os.getenv("GOOGLE_API_KEY", os.getenv("OPENAI_API_KEY", "dummy_token")), base_url="https://generativelanguage.googleapis.com/v1beta/openai/")
 
     @config_manager.config_defaults(
         model="model",
@@ -171,7 +171,7 @@ class OpenAIClient:
                 #
                 # Model fallback strategy using config
                 if i <= 3:
-                    current_model = config["OpenAI"].get("MODEL", "alias-large")
+                    current_model = config["OpenAI"].get("MODEL", "gemini-3-flash-preview")
                     current_wait_time = 35
                 elif i <= 5:
                     current_model = config["OpenAI"].get("FALLBACK_MODEL_LARGE", "alias-large")
@@ -236,6 +236,20 @@ class OpenAIClient:
         """   
 
         # adjust parameters depending on the model
+
+        # --- GOOGLE GEMINI PARAMETER SANITIZATION ---
+        if "reasoning_effort" in chat_api_params:
+            del chat_api_params["reasoning_effort"]
+        if "frequency_penalty" in chat_api_params:
+            del chat_api_params["frequency_penalty"]
+        if "presence_penalty" in chat_api_params:
+            del chat_api_params["presence_penalty"]
+        if "stop" in chat_api_params and not chat_api_params["stop"]:
+            del chat_api_params["stop"]
+        if "max_completion_tokens" in chat_api_params:
+            chat_api_params["max_tokens"] = chat_api_params.pop("max_completion_tokens")
+        # ---------------------------------------------
+
         if self._is_reasoning_model(model):
             # Reasoning models have slightly different parameters
             del chat_api_params["stream"]
