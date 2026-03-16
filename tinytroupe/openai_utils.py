@@ -261,27 +261,41 @@ class OpenAIClient:
         # To make the log cleaner, we remove the messages from the logged parameters
         logged_params = {k: v for k, v in chat_api_params.items() if k != "messages"} 
 
-        if "response_format" in chat_api_params:
-            # to enforce the response format via pydantic, we need to use a different method
+        # --- GOOGLE FALLBACK INJECTION ---
+        import os
+        from openai import OpenAI
 
-            if "stream" in chat_api_params:
-                del chat_api_params["stream"]
+        try:
+            if "response_format" in chat_api_params:
+                if "stream" in chat_api_params: del chat_api_params["stream"]
+                result_message = self.client.beta.chat.completions.parse(**chat_api_params)
+                return result_message
+            else:
+                return self.client.chat.completions.create(**chat_api_params)
 
-            logger.debug(f"Calling LLM model (using .parse too) with these parameters: {logged_params}. Not showing 'messages' parameter.")
-            # complete message
-            logger.debug(f"   --> Complete messages sent to LLM: {chat_api_params['messages']}")
+        except Exception as e:
+            logger.warning(f"Primary model call failed ({e}). Falling back to Google gemini-3-flash-preview...")
 
-            result_message = self.client.beta.chat.completions.parse(
-                    **chat_api_params
-                )
+            google_client = OpenAI(
+                api_key=os.environ.get("GOOGLE_API_KEY", "missing_google_key"),
+                base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+            )
+            chat_api_params["model"] = "gemini-3-flash-preview"
 
-            return result_message 
-        
-        else:
-            logger.debug(f"Calling LLM model with these parameters: {logged_params}. Not showing 'messages' parameter.")
-            return self.client.chat.completions.create(
-                        **chat_api_params
-                    )
+            # Remove parameters Google OpenAI compat endpoint might not support
+            if "response_format" in chat_api_params:
+                del chat_api_params["response_format"]
+            if "reasoning_effort" in chat_api_params:
+                del chat_api_params["reasoning_effort"]
+            if "frequency_penalty" in chat_api_params:
+                del chat_api_params["frequency_penalty"]
+            if "presence_penalty" in chat_api_params:
+                del chat_api_params["presence_penalty"]
+            if "max_completion_tokens" in chat_api_params:
+                chat_api_params["max_tokens"] = chat_api_params.pop("max_completion_tokens")
+
+            return google_client.chat.completions.create(**chat_api_params)
+        # ----------------------------------
 
     def _is_reasoning_model(self, model):
         return "o1" in model or "o3" in model
