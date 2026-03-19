@@ -39,17 +39,15 @@ class TinyTroupeSimulationManager:
             if missing_count > 0:
                 try:
                     # Utilize the TinyPersonFactory dynamic population pattern
-                    factory = TinyPersonFactory(
-                        sampling_space_description=customer_profile,
-                        total_population_size=missing_count,
-                        context=business_description
-                    )
+                    # Utilize the TinyPersonFactory dynamic population pattern, but generate sequentially to avoid Google 429 rate limits
+                    factory = TinyPersonFactory(business_description)
 
-                    logger.info(f"Job {job_id}: Generating {missing_count} personas via TinyPersonFactory...")
+                    logger.info(f"Job {job_id}: Generating {missing_count} personas via TinyPersonFactory sequentially...")
 
-                    people = factory.generate_people(missing_count)
+                    for i in range(missing_count):
+                        logger.info(f"Job {job_id}: Requesting persona {i+1}/{missing_count} from LLM...")
+                        person = factory.generate_person(customer_profile)
 
-                    for i, person in enumerate(people):
                         if person:
                             persona_data = person._persona
                             persona_data["_assureness_score"] = 100 # New ones are perfectly matched to the description
@@ -63,6 +61,10 @@ class TinyTroupeSimulationManager:
                                 json.dump(persona_data, f, indent=4)
 
                         job_registry.update_job(job_id, progress_percentage=20 + int((i+1)/missing_count * 60))
+
+                        # Throttle consecutive requests to respect Google Gemini free tier limits
+                        if i < missing_count - 1:
+                            time.sleep(10)
 
                 except Exception as e:
                     logger.error(f"Error during persona generation: {e}")
