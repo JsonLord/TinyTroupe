@@ -1,3 +1,8 @@
+---
+title: UserSync
+sdk: docker
+app_port: 7860
+---
 # TinyTroupe 🤠🤓🥸🧐
 *LLM-powered multiagent persona simulation for imagination enhancement and business insights.*
 
