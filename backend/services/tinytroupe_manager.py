@@ -39,24 +39,60 @@ class TinyTroupeSimulationManager:
             if missing_count > 0:
                 try:
                     # Utilize the TinyPersonFactory dynamic population pattern
-                    # Utilize the TinyPersonFactory dynamic population pattern, but generate sequentially to avoid Google 429 rate limits
-                    factory = TinyPersonFactory(business_description)
+                    # Utilize the custom pipeline schema pattern for structured creation and validation
+                    from backend.services.persona_pipeline import CompanyProfile, CustomerSegment, get_blablador_client, generate_validation_expectations, generate_single_persona, export_persona
 
-                    logger.info(f"Job {job_id}: Generating {missing_count} personas via TinyPersonFactory sequentially...")
+                    company = CompanyProfile(
+                        name="Unknown Company",
+                        industry="General",
+                        size="N/A",
+                        market="General",
+                        description=business_description,
+                        challenges=[]
+                    )
+
+                    segment = CustomerSegment(
+                        name="Target Segment",
+                        description=customer_profile,
+                        typical_needs=[],
+                        typical_fears=[],
+                        size_hint=missing_count
+                    )
+
+                    logger.info(f"Job {job_id}: Generating expectations for {missing_count} personas...")
+                    client = get_blablador_client()
+                    expectations = generate_validation_expectations(company, segment, client)
+
+                    # Sleep to prevent 429
+                    time.sleep(10)
 
                     for i in range(missing_count):
-                        logger.info(f"Job {job_id}: Requesting persona {i+1}/{missing_count} from LLM...")
-                        person = factory.generate_person(customer_profile)
+                        logger.info(f"Job {job_id}: Requesting persona {i+1}/{missing_count} from Pipeline...")
 
-                        if person:
+                        person, score, justification = generate_single_persona(
+                            company=company,
+                            segment=segment,
+                            expectations=expectations,
+                            index=i,
+                            total=missing_count,
+                            min_score=0.7,
+                            max_attempts=3
+                        )
+
+                        if person is not None and getattr(person, '_persona', None) is not None:
                             persona_data = person._persona
-                            persona_data["_assureness_score"] = 100 # New ones are perfectly matched to the description
+                            persona_data["_assureness_score"] = score * 100 if score else 100 # Default to 100 if validation fails parsing
                             new_personas.append(persona_data)
+
+                            # Safe filename parsing
+                            safe_name = person.name.lower().strip()
+                            safe_name = re.sub(r"[^\w\s-]", "", safe_name)
+                            safe_name = re.sub(r"[\s-]+", "_", safe_name)[:60]
 
                             # Save to local file system for git sync
                             local_dir = "/app/personas"
                             os.makedirs(local_dir, exist_ok=True)
-                            file_path = os.path.join(local_dir, f"{person.name.replace(' ', '_')}.json")
+                            file_path = os.path.join(local_dir, f"{safe_name}.json")
                             with open(file_path, "w") as f:
                                 json.dump(persona_data, f, indent=4)
 
