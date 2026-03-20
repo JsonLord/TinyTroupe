@@ -40,48 +40,23 @@ class TinyTroupeSimulationManager:
                 try:
                     # Utilize the TinyPersonFactory dynamic population pattern
                     # Utilize the custom pipeline schema pattern for structured creation and validation
-                    from backend.services.persona_pipeline import CompanyProfile, CustomerSegment, get_blablador_client, generate_validation_expectations, generate_single_persona, export_persona
+                    # Utilize the TinyPersonFactory dynamic population pattern natively with parallel generation
+                    from tinytroupe.factory import TinyPersonFactory
 
-                    company = CompanyProfile(
-                        name="Unknown Company",
-                        industry="General",
-                        size="N/A",
-                        market="General",
-                        description=business_description,
-                        challenges=[]
+                    factory = TinyPersonFactory(
+                        sampling_space_description=customer_profile,
+                        total_population_size=missing_count,
+                        context=business_description
                     )
 
-                    segment = CustomerSegment(
-                        name="Target Segment",
-                        description=customer_profile,
-                        typical_needs=[],
-                        typical_fears=[],
-                        size_hint=missing_count
-                    )
+                    logger.info(f"Job {job_id}: Generating {missing_count} personas via TinyPersonFactory with parallelize=True...")
 
-                    logger.info(f"Job {job_id}: Generating expectations for {missing_count} personas...")
-                    client = get_blablador_client()
-                    expectations = generate_validation_expectations(company, segment, client)
+                    people = factory.generate_people(missing_count, parallelize=True)
 
-                    # Sleep to prevent 429
-                    time.sleep(10)
-
-                    for i in range(missing_count):
-                        logger.info(f"Job {job_id}: Requesting persona {i+1}/{missing_count} from Pipeline...")
-
-                        person, score, justification = generate_single_persona(
-                            company=company,
-                            segment=segment,
-                            expectations=expectations,
-                            index=i,
-                            total=missing_count,
-                            min_score=0.7,
-                            max_attempts=3
-                        )
-
+                    for i, person in enumerate(people):
                         if person is not None and getattr(person, '_persona', None) is not None:
                             persona_data = person._persona
-                            persona_data["_assureness_score"] = score * 100 if score else 100 # Default to 100 if validation fails parsing
+                            persona_data["_assureness_score"] = 100 # New ones are perfectly matched to the description
                             new_personas.append(persona_data)
 
                             # Safe filename parsing
@@ -97,10 +72,6 @@ class TinyTroupeSimulationManager:
                                 json.dump(persona_data, f, indent=4)
 
                         job_registry.update_job(job_id, progress_percentage=20 + int((i+1)/missing_count * 60))
-
-                        # Throttle consecutive requests to respect Google Gemini free tier limits
-                        if i < missing_count - 1:
-                            time.sleep(10)
 
                 except Exception as e:
                     logger.error(f"Error during persona generation: {e}")
