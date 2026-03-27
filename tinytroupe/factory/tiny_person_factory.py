@@ -1101,10 +1101,20 @@ class TinyPersonFactory(TinyFactory):
             else:
                 qty = int(sample["quantity"])
 
+            if "sampled_values" in sample:
+                extracted_sample = sample["sampled_values"]
+            else:
+                logger.warning(f"Sample in sampling plan does not have a 'sampled_values' field: {sample}. Trying to infer values.")
+                extracted_sample = {k: v for k, v in sample.items() if k not in ["quantity", "id", "subpopulation_description"]}
+
+            if not extracted_sample:
+                logger.warning(f"Failed to extract any sampled values from: {sample}. Skipping.")
+                continue
+
             for _ in range(qty):
                 # we need to copy the sample to avoid adding the original sample multiple times,
                 # which would cause problems later when we modify the individual flattened samples
-                cc_sample = copy.deepcopy(sample["sampled_values"]) 
+                cc_sample = copy.deepcopy(extracted_sample)
 
                 samples.append(cc_sample)
         

@@ -1,0 +1,11 @@
+.git/
+__pycache__/
+.github/
+tests/
+examples/
+docs/
+publications/
+test_exports/
+.env
+.env.example
+*.bat
