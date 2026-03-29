@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+pydantic
+pydantic-settings
+gradio
+gradio_client
+httpx
+pytest
+tinytroupe
+chevron
+textdistance
+scipy
+llama-index
+llama-index-embeddings-huggingface
+llama-index-readers-web
+llama-index-embeddings-azure-openai
+ipython

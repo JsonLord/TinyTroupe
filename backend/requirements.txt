@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+pydantic
+pydantic-settings
+gradio
+gradio_client
+httpx
+pytest
+tinytroupe

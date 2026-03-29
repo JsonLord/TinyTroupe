@@ -198,6 +198,7 @@ class TinyPersonFactory(TinyFactory):
 
         logger.debug(f"Starting the person generation based these particularities: {agent_particularities}")
         fresh_agent_name = None
+        sampled_characteristics = None
 
         # are we going to use a pre-computed sample of characteristics too?
         if self.population_size is not None:
